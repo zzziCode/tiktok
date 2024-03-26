@@ -1,5 +1,5 @@
 HELP.md
-resources/
+resource/
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/

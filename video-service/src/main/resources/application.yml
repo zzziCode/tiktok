@@ -1,0 +1,40 @@
+spring:
+  # 数据库相关配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/tiktok?useSSL=false
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.jdbc.Driver
+  application:
+    name: videoservice
+  # 最大文件大小
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+server:
+  port: 9192
+
+# 腾讯云上传文件的配置
+tencent:
+  cos:
+    secretId: AKID496vaHqKgv21PcgdP0ty7LVeqDd5YvGa
+    secretKey: VvJjAc4RmBf7Z7kJrP0gT5hATaAezBGH
+    bucketName: zzzi-img-1313100942
+    region: ap-beijing
+# 视频和封面的本地保存地址
+video_save_path: "G:/Java/tiktok/resource/static/video/"
+cover_save_path: "G:/Java/tiktok/resource/static/cover/"
+
+mybatis-plus:
+  configuration:
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射
+    map-underscore-to-camel-case: true
+    # 日志输出到控制台
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+logging:
+  level:
+    # 这个包下的日志记录级别为debug
+    com.zzzi: debug
+  pattern:
+    dateformat: MM-dd HH:mm:ss:SSS
