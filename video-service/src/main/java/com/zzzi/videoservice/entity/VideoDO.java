@@ -1,5 +1,7 @@
 package com.zzzi.videoservice.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -22,14 +24,19 @@ public class VideoDO {
 
     private String playUrl;
 
+    @TableField(fill = FieldFill.INSERT)
     private Date createTime;
 
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private Date updateTime;
 
+    @TableField(fill = FieldFill.INSERT)
     private String title;
 
+    @TableField(fill = FieldFill.INSERT)
     private Integer favoriteCount;
 
+    @TableField(fill = FieldFill.INSERT)
     private Integer commentCount;
 
 }

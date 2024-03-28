@@ -12,8 +12,36 @@ spring:
     multipart:
       max-file-size: 100MB
       max-request-size: 100MB
+  rabbitmq:
+    host: 106.75.247.170
+    port: 5672
+    username: root
+    password: 123456
+    virtual-host: / # 虚拟主机
+    listener:
+      direct:
+        prefetch: 1
+  cloud:
+    # nacos相关地址
+    nacos:
+      server-addr: 106.75.247.170:8848
+      config:
+        enabled: false
+  redis:
+    host: localhost
+    port: 6379
+    lettuce:
+      cluster:
+        refresh:
+          adaptive: true
+          period: 600000
+    pool:
+      max-active: 8 # 连接池最大连接数
+      max-wait: -1 # 最大阻塞等待时间没有限制
+      min-idle: 0 # 连接池中最小空闲连接数
+      timeout: 200 # 连接超时时间
 server:
-  port: 9192
+  port: 9190
 
 # 腾讯云上传文件的配置
 tencent:
@@ -25,6 +53,8 @@ tencent:
 # 视频和封面的本地保存地址
 video_save_path: "G:/Java/tiktok/resource/static/video/"
 cover_save_path: "G:/Java/tiktok/resource/static/cover/"
+# 推荐视频缓存的最大数量
+video_feed_max_size: 5000
 
 mybatis-plus:
   configuration:
@@ -38,3 +68,17 @@ logging:
     com.zzzi: debug
   pattern:
     dateformat: MM-dd HH:mm:ss:SSS
+# 防止远程调用超时
+feign:
+  hystrix:
+    enabled: true
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 15000
+ribbon:
+  ConnectTimeout: 5000
+  ReadTimeout: 5000
