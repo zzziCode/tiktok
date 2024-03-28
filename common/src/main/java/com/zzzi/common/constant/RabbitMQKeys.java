@@ -1,20 +1,34 @@
 package com.zzzi.common.constant;
 
-/**@author zzzi
+/**
+ * @author zzzi
  * @date 2024/3/25 18:46
  * RabbitMQ的相关设计
  */
-public class RabbitMQConstant {
+public class RabbitMQKeys {
+
     /**
-     * MQ中关于点赞的topic
+     * MQ中交换机名称
      */
-    public static String FAVORITE = "favorite";
+    public static final String EXCHANGE_NAME = "tiktok.direct";
+
     /**
-     * MQ中关于评论的topic
+     * MQ中关于点赞的key
      */
-    public static String COMMENT = "comment";
+    public static final String FAVORITE_KEY = "favorite";
     /**
-     * MQ中关于关注的topic
+     * MQ中关于评论的key
      */
-    public static String FOLLOW = "follow";
+    public static final String COMMENT_KEY = "comment";
+    /**
+     * MQ中关于关注的key
+     */
+    public static final String FOLLOW_KEY = "follow";
+
+    /**
+     * MQ中关于关注的key
+     */
+    public static final String VIDEO_POST = "video_post";
+
+
 }

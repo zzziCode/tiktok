@@ -33,6 +33,7 @@
         <mybatisplus.version>3.5.2</mybatisplus.version>
         <jwt.version>0.7.0</jwt.version>
         <springboot.version>2.3.9.RELEASE</springboot.version>
+        <springboot.amqp>2.3.1.RELEASE</springboot.amqp>
     </properties>
 
     <dependencyManagement>
@@ -40,6 +41,13 @@
 
         <dependencies>
 
+            <!--AMQP依赖，包含RabbitMQ-->
+            <!--这个起步依赖就可以引入需要的东西-->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-amqp</artifactId>
+                <version>${springboot.amqp}</version>
+            </dependency>
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt</artifactId>
