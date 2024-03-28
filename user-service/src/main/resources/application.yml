@@ -7,13 +7,45 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
   application:
     name: userservice
+  cloud:
+    # nacos相关地址
+    nacos:
+      server-addr: 106.75.247.170:8848
+      config:
+        enabled: false
+  rabbitmq:
+    host: 106.75.247.170
+    port: 5672
+    username: root
+    password: 123456
+    virtual-host: / # 虚拟主机
+    listener:
+      direct:
+        prefetch: 1
   # 最大文件大小
   servlet:
     multipart:
       max-file-size: 100MB
       max-request-size: 100MB
+  redis:
+    host: localhost
+    port: 6379
+    lettuce:
+      cluster:
+        refresh:
+          adaptive: true
+          period: 600000
+    pool:
+      max-active: 8 # 连接池最大连接数
+      max-wait: -1 # 最大阻塞等待时间没有限制
+      min-idle: 0 # 连接池中最小空闲连接数
+      timeout: 200 # 连接超时时间
+
+
 server:
   port: 9191
+
+#redis相关配置
 
 
 mybatis-plus:

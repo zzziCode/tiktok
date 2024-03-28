@@ -23,6 +23,12 @@
     </properties>
     <dependencies>
 
+        <!--rabitmq的依赖-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!--redis的起步依赖-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -72,10 +78,10 @@
             <version>2.8.2</version>
         </dependency>
         <!-- nacos客户端依赖包 -->
-        <!--<dependency>
+        <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
-        </dependency>-->
+        </dependency>
         <!--feign客户端依赖-->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
