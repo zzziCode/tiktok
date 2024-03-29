@@ -13,6 +13,7 @@
         <module>./common</module>
         <module>./video-service</module>
         <module>./user-service</module>
+        <module>./gateway</module>
     </modules>
 
     <packaging>pom</packaging>

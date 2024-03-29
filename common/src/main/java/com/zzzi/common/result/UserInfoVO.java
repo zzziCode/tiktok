@@ -24,7 +24,11 @@ public class UserInfoVO {
 
     //成功调用这个函数
     public static UserInfoVO success(UserVO user) {
-        user.setIs_follow(true);
+        /**@author zzzi
+         * @date 2024/3/29 13:42
+         * todo：用户自己对自己的关注状态，先设置为false,其实应该根据当前用户的关系来动态设置
+         */
+        user.setIs_follow(false);
         return new UserInfoVO(1, "成功", user);
     }
 

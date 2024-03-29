@@ -16,6 +16,7 @@ public class UserVO {
     private Integer follow_count;
     private Integer follower_count;
     private boolean is_follow;
+    //下面的字段是新增的
     private String avatar;
     private String background_image;
     private String signature;
