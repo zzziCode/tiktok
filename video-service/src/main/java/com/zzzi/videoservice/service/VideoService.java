@@ -15,4 +15,7 @@ public interface VideoService extends IService<VideoDO> {
     void postVideo(MultipartFile data, String token, String title);
 
     List<VideoVO> getPublishListByAuthorId(String token, Long user_id);
+
+    List<VideoVO> getFeedList(Long latest_time, String token);
+
 }

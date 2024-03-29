@@ -20,9 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class GlobalExceptionHandler {
 
-
     @ExceptionHandler(VideoException.class)
-    public CommonVO VideoExceptionHandler(UserException ex) {
+    public CommonVO VideoExceptionHandler(VideoException ex) {
         log.error(ex.getMessage());
 
         if (ex.getMessage().contains("视频上传失败")) {
@@ -46,10 +45,9 @@ public class GlobalExceptionHandler {
         if (ex.getMessage().contains("当前用户未登录")) {
             return CommonVO.fail("当前用户未登录");
         }
-
-
         return CommonVO.fail("未知错误");
     }
+
     @ExceptionHandler(UserException.class)
     public CommonVO UserExceptionHandler(UserException ex) {
         log.error(ex.getMessage());
@@ -57,8 +55,12 @@ public class GlobalExceptionHandler {
         if (ex.getMessage().contains("当前用户未登录")) {
             return CommonVO.fail("当前用户未登录");
         }
+        return CommonVO.fail("未知错误");
+    }
 
-
+    @ExceptionHandler(Exception.class)
+    public CommonVO CommonExceptionHandler(Exception ex) {
+        log.error(ex.getMessage());
         return CommonVO.fail("未知错误");
     }
 }

@@ -14,10 +14,8 @@ import com.zzzi.common.utils.JwtUtils;
 import com.zzzi.common.utils.MD5Utils;
 import com.zzzi.common.utils.UploadUtils;
 import com.zzzi.common.utils.VideoUtils;
-import com.zzzi.videoservice.controller.VideoController;
 import com.zzzi.videoservice.entity.VideoDO;
 import com.zzzi.videoservice.mapper.VideoMapper;
-import com.zzzi.videoservice.result.VideoListVO;
 import com.zzzi.videoservice.result.VideoVO;
 import com.zzzi.videoservice.service.VideoService;
 import lombok.extern.slf4j.Slf4j;
@@ -28,14 +26,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import sun.awt.Mutex;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -172,7 +169,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                     return packageVideoListVO(userWorkList, userVO);
                 }
                 //3. 到这里才真正进行缓存重建
-                return rebuildCache(user_id, userVO);
+                return rebuildUserWorkListCache(user_id, userVO);
             } catch (Exception e) {
                 log.error(e.getMessage());
                 throw new VideoException("获取用户作品列表失败");
@@ -184,25 +181,48 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
 
     /**
      * @author zzzi
-     * @date 2024/3/28 16:16
-     * 缓存重建，然后将查询到的数据返回
+     * @date 2024/3/29 12:23
+     * 如果当前用户登陆了，也就是传递了token，需要判断关注状态
+     * 当前用户没有登陆，默认没关注
+     * 缓存中没有就是别的操作将这个缓存删除了，此时
      */
-    private List<VideoVO> rebuildCache(Long user_id, UserVO userVO) {
+    @Override
+    public List<VideoVO> getFeedList(Long latest_time, String token) {
+        //分为两种情况：
+        //1. 缓存中有:
+        //      1.1 防止缓存穿透的默认值
+        //      1.2 是真的有
+        //2. 缓存中没有：此时缓存重建，重建之前需要拿到互斥锁并进行双重检查，防止缓存多次重建
+        //缓存重建需要注意的是数据库中没有数据时，此时缓存中要保存设置有效期的默认值
+        return null;
+    }
+
+    /**
+     * @author zzzi
+     * @date 2024/3/28 16:16
+     * 重建用户作品缓存，然后将查询到的数据返回
+     */
+    private List<VideoVO> rebuildUserWorkListCache(Long user_id, UserVO userVO) {
         //从数据库中查询到当前用户的所有数据，有两种情况：
         //1. 查询到了数据，此时正常重建缓存
         //2. 没查询到数据，为了防止缓存穿透，此时存储默认值
         LambdaQueryWrapper<VideoDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(VideoDO::getAuthorId, user_id);
         //获取当前作者的全部作品
-        /**@author zzzi
-         * @date 2024/3/28 18:16
-         * 这里为什么没查询到视频的id
-         */
         List<VideoDO> videoDOList = videoMapper.selectList(queryWrapper);
 
         List<String> userWorkList = new ArrayList<>();
         if (videoDOList.size() == 0) {//没有作品，存储默认值
+            //将数据缓存到用户作品缓存中
             userWorkList.add(RedisDefaultValue.REDIS_DEFAULT_VALUE);
+            /**@author zzzi
+             * @date 2024/3/29 13:36
+             * 缓存中存储5分钟过期的默认值，防止缓存穿透
+             */
+            redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + user_id, RedisDefaultValue.REDIS_DEFAULT_VALUE);
+            redisTemplate.expire(RedisKeys.USER_WORKS_PREFIX + user_id, 5, TimeUnit.MINUTES);
+            //然后将数据打包返回
+            return packageVideoListVO(userWorkList, userVO);
         } else {//查询到了数据，存储真实值
             Gson gson = new Gson();
             for (VideoDO videoDO : videoDOList) {
@@ -211,6 +231,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             }
         }
         //将数据缓存到用户作品缓存中
+        //正常的作品不设置有效期
         redisTemplate.opsForList().leftPushAll(RedisKeys.USER_WORKS_PREFIX + user_id, userWorkList);
         //然后将数据打包返回
         return packageVideoListVO(userWorkList, userVO);
@@ -219,7 +240,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     /**
      * @author zzzi
      * @date 2024/3/28 15:46
-     * 将每一个json风格的videoDO转换成videoVO
+     * 将从缓存中获取到的List<String> userWorkList
      */
     private List<VideoVO> packageVideoListVO(List<String> userWorkList, UserVO userVO) {
         /**@author zzzi
@@ -233,14 +254,24 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         Gson gson = new Gson();
         List<VideoVO> videoVOList = new ArrayList<>(userWorkList.size());
         for (String videoDOJson : userWorkList) {
-            VideoDO videoDO = gson.fromJson(videoDOJson, VideoDO.class);
-            //将每一个videoDO转换成videoVO
-            VideoVO videoVO = packageVideoVO(videoDO, userVO);
-            videoVOList.add(videoVO);
+            //防止将默认值没过期前加入作品列表
+            if (!videoDOJson.equals(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
+                VideoDO videoDO = gson.fromJson(videoDOJson, VideoDO.class);
+                //将每一个videoDO转换成videoVO
+                VideoVO videoVO = packageVideoVO(videoDO, userVO);
+                videoVOList.add(videoVO);
+            }
         }
         return videoVOList;
     }
 
+    /**
+     * @author zzzi
+     * @date 2024/3/29 13:43
+     * 这个函数在获取用户作品列表和推荐视频列表时都会使用
+     * 1. 获取用户作品列表时，用户的关注状态默认为true
+     * 2. 获取推荐视频列表时，用户的关注状态需要手动判断
+     */
     private VideoVO packageVideoVO(VideoDO videoDO, UserVO userVO) {
         VideoVO videoVO = new VideoVO();
         videoVO.setId(videoDO.getVideoId());
@@ -252,7 +283,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         videoVO.setTitle(videoDO.getTitle());
         /**@author zzzi
          * @date 2024/3/28 15:54
-         * todo：后期修改用户自己作品的点赞状态
+         * todo：后期修改用户自己作品的点赞状态，现在是作者默认给自己的作品点过赞
          */
         videoVO.setIs_favorite(true);
         return videoVO;
@@ -280,8 +311,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             File cover = VideoUtils.fetchPic(video, COVER_SAVE_PATH + coverName);
 
             //上传文件
-            //String coverUrl = uploadUtils.upload(cover, "_cover.jpg");
-            //String videoUrl = uploadUtils.upload(video, "_video.mp4");
+            String coverUrl = uploadUtils.upload(cover, "_cover.jpg");
+            String videoUrl = uploadUtils.upload(video, "_video.mp4");
             /**@author zzzi
              * @date 2024/3/24 10:05
              * 拿到本地和云端地址，数据库想保存哪个就保存哪个
@@ -294,8 +325,11 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             log.info("视频本地地址为：{}", VIDEO_SAVE_PATH + videoName);
             VideoDO videoDO = new VideoDO();
             videoDO.setAuthorId(authorId);
-            videoDO.setCoverUrl(COVER_SAVE_PATH + coverName);
-            videoDO.setPlayUrl(VIDEO_SAVE_PATH + videoName);
+            //videoDO.setCoverUrl(COVER_SAVE_PATH + coverName);
+            //videoDO.setPlayUrl(VIDEO_SAVE_PATH + videoName);
+            //存放真实地址
+            videoDO.setPlayUrl(videoUrl);
+            videoDO.setCoverUrl(coverUrl);
             videoDO.setTitle(title);
 
             return videoDO;

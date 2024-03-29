@@ -46,9 +46,17 @@ public class VideoController {
         return VideoListVO.success("成功", videoVOList);
     }
 
+    /**
+     * @author zzzi
+     * @date 2024/3/29 12:14
+     * 视频的推流，每次推流三十个视频
+     * 如果没有传递latest_time，就按照当前时间推荐30个，并返回当前推荐视频的最早时间
+     * 30个视频刷完按照这个最早时间继续推荐
+     */
     @GetMapping("/feed")
-    public void getFeedList(String latest_time, String token) {
-
+    public void getFeedList(Long latest_time, String token) {
+        List<VideoVO> videoVOList = videoService.getFeedList(latest_time, token);
+        //根据拿到的作品列表获取到下次推荐的时间节点next_time
     }
 
     /**
