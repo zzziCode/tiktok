@@ -1,10 +1,12 @@
 package com.zzzi.userservice.controller;
 
 
+import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.UserInfoVO;
 import com.zzzi.userservice.dto.UserDTO;
 import com.zzzi.userservice.result.UserRegisterLoginVO;
 import com.zzzi.common.result.UserVO;
+import com.zzzi.userservice.service.UserFollowService;
 import com.zzzi.userservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,7 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
 
     /**
      * @author zzzi
@@ -61,6 +64,7 @@ public class UserController {
         //将后端封装好的userVO返回给前端
         return UserInfoVO.success(user);
     }
+
 
 
 

@@ -11,4 +11,6 @@ public interface UserService extends IService<UserDO> {
     UserDTO register(String username, String password);
 
     UserVO getUserInfo(String user_id);
+
+
 }

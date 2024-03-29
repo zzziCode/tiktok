@@ -13,6 +13,7 @@ import com.zzzi.common.exception.UserException;
 import com.zzzi.userservice.mapper.UserMapper;
 import com.zzzi.common.result.UserVO;
 import com.zzzi.userservice.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
     @Autowired
     private UserMapper userMapper;
@@ -128,6 +130,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      */
     @Override
     public UserVO getUserInfo(String user_id) {
+        log.info("待查询的用户id为：{}", user_id);
 
         String userDOJson = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id);
 
@@ -140,10 +143,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         Gson gson = new Gson();
         UserDO userDO = gson.fromJson(userDOJson, UserDO.class);
 
-        /**@author zzzi
-         * @date 2024/3/28 21:20
-         * todo：测试这种更新方式是否有效
-         */
         //用户信息获取成功，代表当前用户已登录并且有操作，此时更新token和用户信息的有效期
         redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + user_id, 30, TimeUnit.MINUTES);
         redisTemplate.expire(RedisKeys.USER_INFO_PREFIX + user_id, 30, TimeUnit.MINUTES);
@@ -151,6 +150,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         //将查询到的userDO转换成前端需要的userVO
         return packageUserVO(userDO);
     }
+
 
     /**
      * @author zzzi

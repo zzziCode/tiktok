@@ -1,18 +1,18 @@
 spring:
   # 数据库相关配置
   datasource:
-    url: jdbc:mysql://localhost:3306/tiktok?useSSL=false
+    url: jdbc:mysql://localhost:3306/tiktok?useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.jdbc.Driver
   application:
     name: userservice
+  mvc:
+    static-path-pattern:server: /**
   cloud:
     # nacos相关地址
     nacos:
       server-addr: 106.75.247.170:8848
-      config:
-        enabled: false
   rabbitmq:
     host: 106.75.247.170
     port: 5672
@@ -44,8 +44,6 @@ spring:
 
 server:
   port: 9191
-
-#redis相关配置
 
 
 mybatis-plus:

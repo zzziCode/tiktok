@@ -1,6 +1,7 @@
 package com.zzzi.userservice.interceptor;
 
 import com.zzzi.common.exception.UserException;
+import com.zzzi.common.result.CommonVO;
 import com.zzzi.userservice.result.UserRegisterLoginVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -41,4 +42,12 @@ public class GlobalExceptionHandler {
         }
         return UserRegisterLoginVO.fail("未知错误");
     }
+
+    @ExceptionHandler(Exception.class)
+    public CommonVO CommonExceptionHandler(Exception ex) {
+        log.error(ex.getMessage());
+        return CommonVO.fail("未知错误");
+    }
+
+    //剩下异常的处理器
 }
