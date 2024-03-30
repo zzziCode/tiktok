@@ -7,6 +7,7 @@ import com.sun.corba.se.impl.oa.toa.TOA;
 import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.utils.JwtUtils;
 import com.zzzi.common.utils.MD5Utils;
+import com.zzzi.common.utils.RandomUtils;
 import com.zzzi.userservice.dto.UserDTO;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.common.exception.UserException;
@@ -18,7 +19,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
+import javax.security.auth.login.LoginException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -27,6 +30,8 @@ import java.util.regex.Pattern;
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private RandomUtils randomUtils;
     /**
      * @author zzzi
      * @date 2024/3/27 10:27
@@ -56,32 +61,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
 
         //尝试往数据库中插入数据，插入失败说明用户名被占用
-        try {
-            UserDO userDO = new UserDO();
-            userDO.setUsername(username);
-            userDO.setEmail(username);
-            userDO.setPassword(pwdMD5);
-            userMapper.insert(userDO);
-
-            Long userId = userDO.getUserId();
-            String token = JwtUtils.createToken(userId, username);
-
-            // 将当前注册用户的token进行缓存
-            // 在30分钟内登录就直接使用当前缓存，当前缓存过期才重新生成token
-            redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, 30, TimeUnit.MINUTES);
-
-            //返回封装好的对象
-            return new UserDTO(userDO, token);
-        } catch (Exception e) {
-            log.error(e.getMessage());
+        UserDO userDO = new UserDO();
+        userDO.setUsername(username);
+        userDO.setEmail(username);
+        userDO.setPassword(pwdMD5);
+        int insert = userMapper.insert(userDO);
+        //插入失败
+        if (insert != 1) {
             throw new UserException("用户名被占用，请重新输入用户名");
         }
+
+        Long userId = userDO.getUserId();
+        String token = JwtUtils.createToken(userId, username);
+        log.warn("注册生成的token为：{}", token);
+        // 将当前注册用户的token进行缓存
+        // 在30分钟内登录就直接使用当前缓存，当前缓存过期才重新生成token
+        //Integer userTokenExpireTime = randomUtils.createRandomTime();
+        //redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
+
+        //返回封装好的对象
+        return new UserDTO(userDO, token);
     }
 
     /**
      * @author zzzi
      * @date 2024/3/26 21:28
      * 判断用户是否存在，存在将用户信息缓存到redis中
+     * 用户不能重复登录，判断依据是什么：用户token是否存在
      */
     @Override
     public UserDTO login(String username, String password) {
@@ -92,30 +98,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         //到这里就是用户存在，此时先尝试获取现有token，没有再生成
         Long userId = userDO.getUserId();
-        String token = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + userId);
-        //没有才创建新token
-        if (token == null || "".equals(token)) {
-            token = JwtUtils.createToken(userId, username);
+        Integer userTokenExpireTime = randomUtils.createRandomTime();
+        String token = JwtUtils.createToken(userId, username);
+        //用户登录时尝试保存用户的token到缓存中
+        Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
+        /**@author zzzi
+         * @date 2024/3/30 16:19
+         * 已经存在token，说明此时已经登录过了
+         * 也就是获取互斥锁失败
+         */
+        if (!absent) {
+            throw new UserException("当前用户已经登录，请不要重复登录");
         }
 
+        log.warn("登录生成的token为：{}", token);
         //将用户转换成json数据，然后存储到redis中
         Gson gson = new Gson();
         String userDOJson = gson.toJson(userDO);
         /**@author zzzi
          * @date 2024/3/26 23:09
-         * 将用户登录信息保存到String中，并设置过期值30分钟
+         * 将用户登录信息保存到String中，并设置过期值30-60分钟
          * 后续一旦操作这个用户信息，过期时间自动更新
          * 后缀使用user_id
          */
 
-        //保存用户登录信息之前，要判断用户是不是已经登录
-        Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_INFO_PREFIX + userId, userDOJson, 30, TimeUnit.MINUTES);
-        //当前用户已经登录
-        if (!absent) {
-            throw new UserException("当前用户已经登录，请不要重复登录");
-        }
-        //登陆之后更新用户的token有效期
-        redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + userId, 30, TimeUnit.MINUTES);
+        Integer userInfoExpireTime = randomUtils.createRandomTime();
+        redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + userId, userDOJson, userInfoExpireTime, TimeUnit.MINUTES);
 
         //返回封装的结果
         return new UserDTO(userDO, token);
@@ -144,8 +152,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         UserDO userDO = gson.fromJson(userDOJson, UserDO.class);
 
         //用户信息获取成功，代表当前用户已登录并且有操作，此时更新token和用户信息的有效期
-        redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + user_id, 30, TimeUnit.MINUTES);
-        redisTemplate.expire(RedisKeys.USER_INFO_PREFIX + user_id, 30, TimeUnit.MINUTES);
+        Integer userTokenExpireTime = randomUtils.createRandomTime();
+        Integer userInfoExpireTime = randomUtils.createRandomTime();
+        redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + user_id, userTokenExpireTime, TimeUnit.MINUTES);
+        redisTemplate.expire(RedisKeys.USER_INFO_PREFIX + user_id, userInfoExpireTime, TimeUnit.MINUTES);
 
         //将查询到的userDO转换成前端需要的userVO
         return packageUserVO(userDO);

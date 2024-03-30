@@ -1,10 +1,13 @@
 package com.zzzi.userservice.interceptor;
 
+import com.zzzi.common.exception.FollowException;
 import com.zzzi.common.exception.UserException;
 import com.zzzi.common.result.CommonVO;
 import com.zzzi.userservice.result.UserRegisterLoginVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import javax.security.auth.login.LoginException;
 
 
 /**
@@ -43,11 +46,27 @@ public class GlobalExceptionHandler {
         return UserRegisterLoginVO.fail("未知错误");
     }
 
+    @ExceptionHandler(LoginException.class)
+    public CommonVO LoginExceptionHandler(LoginException ex) {
+        log.error(ex.getMessage());
+        return CommonVO.fail("请先登录");
+    }
+
     @ExceptionHandler(Exception.class)
     public CommonVO CommonExceptionHandler(Exception ex) {
         log.error(ex.getMessage());
         return CommonVO.fail("未知错误");
     }
 
-    //剩下异常的处理器
+    @ExceptionHandler(FollowException.class)
+    public CommonVO FollowExceptionHandler(FollowException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("关注失败，不能重复关注")) {
+            return CommonVO.fail("关注失败，不能重复关注");
+        }
+        if (ex.getMessage().contains("取消关注失败")) {
+            return CommonVO.fail("取消关注失败");
+        }
+        return CommonVO.fail("未知错误");
+    }
 }

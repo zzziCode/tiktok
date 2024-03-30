@@ -5,6 +5,7 @@ import com.zzzi.common.constant.RabbitMQKeys;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.userservice.entity.UserFollowDO;
 import com.zzzi.userservice.mapper.UserMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import com.zzzi.userservice.utils.UpdateUserInfoUtils;
 import org.springframework.amqp.rabbit.annotation.Exchange;
@@ -12,12 +13,15 @@ import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**@author zzzi
  * @date 2024/3/29 16:59
  * 这里执行取消关注的逻辑
  */
+@Service
+@Slf4j
 public class UnFollowListener {
 
     @Autowired
@@ -33,42 +37,42 @@ public class UnFollowListener {
      */
     @RabbitListener(
             bindings = @QueueBinding(
-                    value = @Queue(name = "direct.follow"),
+                    value = @Queue(name = "direct.un_follow"),
                     exchange = @Exchange(name = RabbitMQKeys.EXCHANGE_NAME, type = ExchangeTypes.DIRECT),
                     key = {RabbitMQKeys.UN_FOLLOW_KEY}
             )
     )
     @Transactional
-    public void listenToUnFollow(String userFollowDOJson) {
+    public void listenToUnFollow(String userUnFollowDOJson) {
         //将接收到的实体转换成实体类
         Gson gson = new Gson();
-        UserFollowDO userFollowDO = gson.fromJson(userFollowDOJson, UserFollowDO.class);
+        UserFollowDO userUnFollowDO = gson.fromJson(userUnFollowDOJson, UserFollowDO.class);
 
-        //得到关注者和被关注者的id
-        Long followerId = userFollowDO.getFollowerId();
-        Long followedId = userFollowDO.getFollowedId();
+        //得到取消关注者和被取消关注者的id
+        Long unFollowerId = userUnFollowDO.getFollowerId();
+        Long unFollowedId = userUnFollowDO.getFollowedId();
 
         //查询更新两个用户的信息表和缓存
-        //得到被关注者的信息
-        UserDO followed = userMapper.selectById(followedId);
-        //得到关注者的信息
-        UserDO follower = userMapper.selectById(followerId);
+        //得到被取消关注者的信息
+        UserDO unFollowed = userMapper.selectById(unFollowedId);
+        //得到取消关注者的信息
+        UserDO unFollower = userMapper.selectById(unFollowerId);
 
-        //更新关注者的关注数
-        Integer followerCount = follower.getFollowCount();
-        follower.setFollowCount(followerCount - 1);
-        userMapper.updateById(follower);
+        //更新取消关注者的关注数
+        Integer followerCount = unFollower.getFollowCount();
+        unFollower.setFollowCount(followerCount - 1);
+        userMapper.updateById(unFollower);
 
-        //更新被关注者的粉丝数
-        Integer followedCount = followed.getFollowerCount();
-        followed.setFollowerCount(followedCount - 1);
-        userMapper.updateById(followed);
+        //更新被取消关注者的粉丝数
+        Integer followedCount = unFollowed.getFollowerCount();
+        unFollowed.setFollowerCount(followedCount - 1);
+        userMapper.updateById(unFollowed);
 
         //调用方法更新用户缓存
-        String followerJson = gson.toJson(follower);
-        String followedJson = gson.toJson(followed);
+        String followerJson = gson.toJson(unFollower);
+        String followedJson = gson.toJson(unFollowed);
 
-        updateUserInfoUtils.updateUserInfoCache(followerId,followerJson);
-        updateUserInfoUtils.updateUserInfoCache(followedId,followedJson);
+        updateUserInfoUtils.updateUserInfoCache(unFollowerId,followerJson);
+        updateUserInfoUtils.updateUserInfoCache(unFollowedId,followedJson);
     }
 }

@@ -3,10 +3,12 @@ package com.zzzi.userservice.utils;
 import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.exception.UserException;
 import com.zzzi.common.utils.MD5Utils;
+import com.zzzi.common.utils.RandomUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +23,8 @@ public class UpdateUserInfoUtils {
 
     @Autowired
     private StringRedisTemplate redisTemplate;
+    @Autowired
+    private RandomUtils randomUtils;
 
     public void updateUserInfoCache(Long authorId, String userDOJson) {
         String mutex = MD5Utils.parseStrToMd5L32(userDOJson);
@@ -43,9 +47,12 @@ public class UpdateUserInfoUtils {
             redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + authorId, userDOJson, 30, TimeUnit.MINUTES);
 
             //因为当前有操作，所以用户的token有效期需要更新
-            redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + authorId, 30, TimeUnit.MINUTES);
+            Integer userInfoExpireTime = randomUtils.createRandomTime();
+            redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + authorId, userInfoExpireTime, TimeUnit.MINUTES);
         } catch (Exception e) {
             log.error(e.getMessage());
+            //手动回滚
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             throw new UserException("更新用户信息失败");
         } finally {//最后释放互斥锁
             redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);

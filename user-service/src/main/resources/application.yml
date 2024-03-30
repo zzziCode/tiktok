@@ -1,7 +1,7 @@
 spring:
   # 数据库相关配置
   datasource:
-    url: jdbc:mysql://localhost:3306/tiktok?useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://106.75.247.170:3306/tiktok?useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.jdbc.Driver
@@ -43,8 +43,10 @@ spring:
 
 
 server:
-  port: 9191
-
+  port: 9195
+# 缓存过期值随机打散(30分钟到60分钟)
+random_start: 30
+random_end: 60
 
 mybatis-plus:
   configuration:

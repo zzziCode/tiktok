@@ -18,12 +18,18 @@ class UserServiceApplicationTests {
      */
     @Test
     void testToken() {
-        Long userId = 1772636762530189313L;
-        String userName = "1111@qq.com";
+        Long userId = 1500000000000000000L;
+        String userName = "123";
         String token1 = JwtUtils.createToken(userId, userName);
         String token2 = JwtUtils.createToken(userId, userName);
-
-
+        System.out.println(token1);
         System.out.println(token1.equals(token2));
+    }
+
+    @Test
+    void testParseToken(){
+        String token="eyJhbGciOiJIUzUxMiIsInppcCI6IkdaSVAifQ.H4sIAAAAAAAAAKtWKi5NUrJSconUDQ12DVLSUUqtKFCyMjQ3NLSwsDAytdBRKi1OLfJMAYqZGqADiKRfYm4q0AhDI2OlWgAB1h9IUAAAAA.1S3xfjQNKSeR6ytrMN3tJBh9CkH4qOINVWMCAWXJZGJF5SzU6nMRyejpfLQbQ0iTQXrbjh_uN6UJKWRiMY28Ww";
+        Long userIdByToken = JwtUtils.getUserIdByToken(token);
+        System.out.println(userIdByToken);
     }
 }

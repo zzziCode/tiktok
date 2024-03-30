@@ -5,8 +5,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
 import com.zzzi.common.constant.RedisKeys;
+import com.zzzi.common.exception.FollowException;
 import com.zzzi.common.result.UserVO;
 import com.zzzi.common.utils.JwtUtils;
+import com.zzzi.common.utils.RandomUtils;
 import com.zzzi.userservice.entity.UserFollowDO;
 import com.zzzi.userservice.mapper.UserFollowMapper;
 import com.zzzi.userservice.service.UserFollowService;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.List;
 
@@ -27,7 +30,6 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
     private StringRedisTemplate redisTemplate;
     @Autowired
     private RabbitTemplate rabbitTemplate;
-
     /**
      * @author zzzi
      * @date 2024/3/29 16:20
@@ -55,13 +57,21 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
         userFollowDO.setFollowerId(followerId);
         userFollowDO.setFollowedId(to_user_id);
 
-        //用户关注表中新增一条记录
-        userFollowMapper.insert(userFollowDO);
+        try {
+            //用户关注表中新增一条记录
+            userFollowMapper.insert(userFollowDO);
+        } catch (Exception e) {
+            //一旦这里出错，说明数据库中已经有了对应的关注关系，此时应该是不能重复关注
+            log.error(e.getMessage());
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            throw new FollowException("关注失败，不能重复关注");
+        }
 
         /**@author zzzi
          * @date 2024/3/29 22:30
          * 关注表和粉丝表缓存的是用户的id
          * 做到缓存隔离，减小缓存更新带来的影响
+         * 缓存操作失败会进行回滚
          */
         //当前用户关注缓存新增
         redisTemplate.opsForSet().add(RedisKeys.USER_FOLLOWS_PREFIX + followerId, to_user_id.toString());
@@ -96,12 +106,19 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
     public void followUnAction(String token, Long to_user_id) {
         //解析出当前用户的id
         Long followerId = JwtUtils.getUserIdByToken(token);
-
         //删除用户关注表中的记录
         LambdaQueryWrapper<UserFollowDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(UserFollowDO::getFollowerId, followerId).
                 eq(UserFollowDO::getFollowedId, to_user_id);
-        userFollowMapper.delete(queryWrapper);
+
+        //已经取消关注或者取消关注失败都需要回滚
+        try {
+            userFollowMapper.delete(queryWrapper);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            throw new FollowException("取消关注失败");
+        }
 
         //删除用户的关注缓存
         redisTemplate.delete(RedisKeys.USER_FOLLOWS_PREFIX + followerId);
