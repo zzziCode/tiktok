@@ -16,7 +16,7 @@ spring:
   cloud:
     # nacos相关地址
     nacos:
-      server-addr: 106.75.247.170:8848
+      server-addr: localhost:8848
 
     gateway:
       discovery:

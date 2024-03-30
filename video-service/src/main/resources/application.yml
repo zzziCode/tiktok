@@ -1,7 +1,7 @@
 spring:
   # 数据库相关配置
   datasource:
-    url: jdbc:mysql://localhost:3306/tiktok?useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://106.75.247.170:3306/tiktok?useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.jdbc.Driver
@@ -26,7 +26,7 @@ spring:
   cloud:
     # nacos相关地址
     nacos:
-      server-addr: 106.75.247.170:8848
+      server-addr: localhost:8848
   redis:
     host: localhost
     port: 6379
@@ -43,6 +43,9 @@ spring:
 server:
   port: 9190
 
+# 缓存过期值随机打散(30分钟到60分钟)
+random_start: 30
+random_end: 30
 # 腾讯云上传文件的配置
 tencent:
   cos:
@@ -55,6 +58,8 @@ video_save_path: "G:/Java/tiktok/resource/static/video/"
 cover_save_path: "G:/Java/tiktok/resource/static/cover/"
 # 推荐视频缓存的最大数量，防止出现大key
 video_feed_max_size: 5000
+# 用户作品缓存的最大数量，防止出现大key
+user_works_max_size: 1000
 
 mybatis-plus:
   configuration:

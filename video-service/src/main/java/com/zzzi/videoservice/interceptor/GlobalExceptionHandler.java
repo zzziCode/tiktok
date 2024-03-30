@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.security.auth.login.LoginException;
+
 
 /**
  * @author zzzi
@@ -58,6 +60,11 @@ public class GlobalExceptionHandler {
         return CommonVO.fail("未知错误");
     }
 
+    @ExceptionHandler(LoginException.class)
+    public CommonVO LoginExceptionHandler(LoginException ex) {
+        log.error(ex.getMessage());
+        return CommonVO.fail("请先登录");
+    }
     @ExceptionHandler(Exception.class)
     public CommonVO CommonExceptionHandler(Exception ex) {
         log.error(ex.getMessage());

@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -40,7 +41,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
 
     @Autowired
     private UploadUtils uploadUtils;
-
     //用来远程调用
     @Autowired
     private UserClient userClient;
@@ -57,6 +57,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
 
     @Value("${video_feed_max_size}")
     public Long VIDEO_FEED_MAX_SIZE;
+    @Value("${user_works_max_size}")
+    public Long USER_WORKS_MAX_SIZE;
 
 
     /**
@@ -104,8 +106,16 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             }
 
             //3. 用户作品列表缓存新增
+            /**@author zzzi
+             * @date 2024/3/30 14:23
+             *用户作品超过指定就从缓存中删除之前投搞的作品
+             * 因为用户主页经常访问的也就是前多少个视频
+             */
             redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + authorId, videoDOJson);
-
+            while (redisTemplate.opsForList().size(RedisKeys.USER_WORKS_PREFIX + authorId) > USER_WORKS_MAX_SIZE) {
+                //从右边删除，代表删除最早投稿的视频
+                redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + authorId);
+            }
             /**@author zzzi
              * @date 2024/3/27 19:29
              * 直接让用户作品数+1即可
@@ -118,6 +128,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             log.info("投稿成功");
         } catch (Exception e) {
             log.error(e.getMessage());
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             throw new VideoException("视频保存失败");
         } finally {//释放互斥锁
             redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
@@ -134,6 +145,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      */
     @Override
     public List<VideoVO> getPublishListByAuthorId(String token, Long user_id) {
+        log.warn("获取作品列表的token为：{}", token);
         //判断用户是否登录
         String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
         if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
@@ -188,6 +200,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      */
     @Override
     public List<VideoVO> getFeedList(Long latest_time, String token) {
+        log.warn("获取推荐视频的token为：{}", token);
         //分为两种情况：
         //1. 缓存中有:
         //      1.1 防止缓存穿透的默认值
@@ -231,8 +244,19 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             }
         }
         //将数据缓存到用户作品缓存中
+        //先删除缓存中的默认值（如果没过期，存在的话）
+        redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id);
         //正常的作品不设置有效期
+        /**@author zzzi
+         * @date 2024/3/30 14:23
+         * 用户作品超过大小就删除一点
+         * 只缓存前多少个视频，因为主页经常访问的也就是前多少个视频
+         */
         redisTemplate.opsForList().leftPushAll(RedisKeys.USER_WORKS_PREFIX + user_id, userWorkList);
+        while (redisTemplate.opsForList().size(RedisKeys.USER_WORKS_PREFIX + user_id) > USER_WORKS_MAX_SIZE) {
+            //从右边删除，代表删除最早投稿的视频
+            redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + user_id);
+        }
         //然后将数据打包返回
         return packageVideoListVO(userWorkList, userVO);
     }
@@ -245,7 +269,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     private List<VideoVO> packageVideoListVO(List<String> userWorkList, UserVO userVO) {
         /**@author zzzi
          * @date 2024/3/28 15:57
-         * 防止缓存穿透，此时直接返回null
+         * 防止缓存穿透，此时直接返回null,缓存中已经存储了默认值
          */
         if (userWorkList.get(0).equals(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
             return null;
@@ -253,14 +277,12 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         //到这里就是缓存中真的有，此时直接打包返回
         Gson gson = new Gson();
         List<VideoVO> videoVOList = new ArrayList<>(userWorkList.size());
+        //将从数据库中查询到的数据打包成json缓存到数据库中
         for (String videoDOJson : userWorkList) {
-            //防止将默认值没过期前加入作品列表
-            if (!videoDOJson.equals(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
-                VideoDO videoDO = gson.fromJson(videoDOJson, VideoDO.class);
-                //将每一个videoDO转换成videoVO
-                VideoVO videoVO = packageVideoVO(videoDO, userVO);
-                videoVOList.add(videoVO);
-            }
+            VideoDO videoDO = gson.fromJson(videoDOJson, VideoDO.class);
+            //将每一个videoDO转换成videoVO
+            VideoVO videoVO = packageVideoVO(videoDO, userVO);
+            videoVOList.add(videoVO);
         }
         return videoVOList;
     }
