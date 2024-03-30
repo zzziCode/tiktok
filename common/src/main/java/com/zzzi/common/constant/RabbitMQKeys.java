@@ -25,7 +25,7 @@ public class RabbitMQKeys {
      * 关注和取消关注需要分开
      */
     public static final String FOLLOW_KEY = "follow";
-    public static final String UN_FOLLOW_KEY = "follow";
+    public static final String UN_FOLLOW_KEY = "un_follow";
 
     /**
      * MQ中关于关注的key
