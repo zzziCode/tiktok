@@ -26,11 +26,11 @@ public class UserRelationListVO {
     //成功返回这个结果
     //根据返回的字符串判断获取的是关注列表、粉丝列表还是好友列表
     public static UserRelationListVO success(String status_msg, List<UserVO> user_list) {
-        return new UserRelationListVO(1, status_msg, user_list);
+        return new UserRelationListVO(0, status_msg, user_list);
     }
 
     //失败调用这个函数
     public static UserRelationListVO fail(String status_msg) {
-        return new UserRelationListVO(1, status_msg, null);
+        return new UserRelationListVO(-1, status_msg, null);
     }
 }

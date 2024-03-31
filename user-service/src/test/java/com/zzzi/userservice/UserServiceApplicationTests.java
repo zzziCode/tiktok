@@ -23,6 +23,7 @@ class UserServiceApplicationTests {
         String token1 = JwtUtils.createToken(userId, userName);
         String token2 = JwtUtils.createToken(userId, userName);
         System.out.println(token1);
+        System.out.println(token2);
         System.out.println(token1.equals(token2));
     }
 

@@ -47,7 +47,6 @@ public class UserDO {
     @TableField(fill = FieldFill.INSERT)
     private Integer favoriteCount;
 
-
     /**
      * @author zzzi
      * @date 2024/3/25 16:12

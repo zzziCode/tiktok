@@ -1,7 +1,7 @@
 spring:
   # 数据库相关配置
   datasource:
-    url: jdbc:mysql://106.75.247.170:3306/tiktok?useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/tiktok?useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.jdbc.Driver

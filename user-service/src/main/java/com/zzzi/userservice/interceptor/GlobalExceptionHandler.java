@@ -2,7 +2,9 @@ package com.zzzi.userservice.interceptor;
 
 import com.zzzi.common.exception.FollowException;
 import com.zzzi.common.exception.UserException;
+import com.zzzi.common.exception.UserInfoException;
 import com.zzzi.common.result.CommonVO;
+import com.zzzi.common.result.UserInfoVO;
 import com.zzzi.userservice.result.UserRegisterLoginVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -54,8 +56,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public CommonVO CommonExceptionHandler(Exception ex) {
+        ex.printStackTrace();
         log.error(ex.getMessage());
-        return CommonVO.fail("未知错误");
+        return CommonVO.fail("出现错误");
+    }
+
+    @ExceptionHandler(UserInfoException.class)
+    public UserInfoVO UserInfoExceptionHandler(UserInfoException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("获取用户信息失败")) {
+            return UserInfoVO.fail("获取用户信息失败");
+        }
+        if (ex.getMessage().contains("获取用户关注列表失败")) {
+            return UserInfoVO.fail("获取用户关注列表失败");
+        }
+
+        return UserInfoVO.fail("未知错误");
     }
 
     @ExceptionHandler(FollowException.class)

@@ -29,7 +29,7 @@ public class UserController {
      */
     @PostMapping("/register")
     public UserRegisterLoginVO register(String username, String password) {
-        log.info("用户名为：{}，用户密码为：{}", username, password);
+        log.info("注册时的用户名为：{}，用户密码为：{}", username, password);
         UserDTO userDTO = userService.register(username, password);
 
         //封装需要的数据返回
@@ -44,7 +44,7 @@ public class UserController {
      */
     @PostMapping("/login")
     public UserRegisterLoginVO login(String username, String password) {
-        log.info("用户名为：{}，用户密码为：{}", username, password);
+        log.info("登录时的用户名为：{}，用户密码为：{}", username, password);
         UserDTO userDTO = userService.login(username, password);
 
         //封装需要的数据返回
@@ -59,13 +59,15 @@ public class UserController {
      */
     @GetMapping
     public UserInfoVO userInfo(String user_id, @RequestParam(required = false) String token) {
+        log.info("获取用户信息的用户id为：{}，用户token为：{}", user_id, token);
+        token = token.substring(12);
+        log.info("截取之后的用户token为：{}", token);
         UserVO user = userService.getUserInfo(user_id);
-
+        if (user == null)
+            return UserInfoVO.fail("当前用户不存在，请先注册");
         //将后端封装好的userVO返回给前端
         return UserInfoVO.success(user);
     }
-
-
 
 
 }

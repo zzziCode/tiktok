@@ -13,4 +13,7 @@ public interface UserService extends IService<UserDO> {
     UserVO getUserInfo(String user_id);
 
 
+    UserVO packageUserVO(String userDOJson);
+
+    UserVO rebuildUserInfoCache(String user_id);
 }

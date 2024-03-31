@@ -28,7 +28,7 @@ public class UserRegisterLoginVO {
      * 向前端返回结果时调用这个函数即可
      */
     public static UserRegisterLoginVO success(Long user_id, String token) {
-        return new UserRegisterLoginVO(1, "成功", user_id, token);
+        return new UserRegisterLoginVO(0, "成功", user_id, token);
     }
 
     public static UserRegisterLoginVO fail(String status_msg) {

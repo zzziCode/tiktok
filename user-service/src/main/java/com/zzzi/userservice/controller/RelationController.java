@@ -2,6 +2,7 @@ package com.zzzi.userservice.controller;
 
 import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.UserVO;
+import com.zzzi.userservice.result.UserRelationListVO;
 import com.zzzi.userservice.service.UserFollowService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,8 @@ public class RelationController {
     @PostMapping("/action")
     public CommonVO followAction(String token, Long to_user_id, String action_type) {
         String status_msg = "";
+        //截取真正的token，去掉前缀"login:token:"
+        token = token.substring(12);
         if (action_type.equals("1")) {
             userFollowService.followAction(token, to_user_id);
             status_msg = "成功关注";
@@ -41,8 +44,14 @@ public class RelationController {
      * 获取当前用户的所有关注列表
      */
     @GetMapping("/follow/list")
-    public void getFollowList(String user_id, String token) {
+    public UserRelationListVO getFollowList(String user_id, String token) {
+        //截取真正的token，去掉前缀"login:token:"
+        token = token.substring(12);
         List<UserVO> user_list = userFollowService.getFollowList(user_id, token);
+        if (user_list == null || user_list.isEmpty()) {
+            return UserRelationListVO.fail("用户关注列表为空");
+        }
+        return UserRelationListVO.success("获取关注列表成功", user_list);
     }
 
 }

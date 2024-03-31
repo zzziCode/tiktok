@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.sun.corba.se.impl.oa.toa.TOA;
+import com.zzzi.common.constant.RedisDefaultValue;
 import com.zzzi.common.constant.RedisKeys;
+import com.zzzi.common.exception.UserInfoException;
 import com.zzzi.common.utils.JwtUtils;
 import com.zzzi.common.utils.MD5Utils;
 import com.zzzi.common.utils.RandomUtils;
@@ -18,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
@@ -39,6 +42,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      */
     @Autowired
     private StringRedisTemplate redisTemplate;
+    @Autowired
+    private UserService userService;
 
 
     /**
@@ -50,7 +55,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     @Override
     @Transactional
     public UserDTO register(String username, String password) {
-
         //正则表达式验证邮箱合法性
         String pattern = "^[a-zA-Z0-9_.-]+@[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)*\\.[a-zA-Z0-9]{2,6}$";
         if (!Pattern.matches(pattern, username)) {
@@ -58,7 +62,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         // 数据库中存的是MD5加密以后的值
         String pwdMD5 = MD5Utils.parseStrToMd5L32(password);
-
 
         //尝试往数据库中插入数据，插入失败说明用户名被占用
         UserDO userDO = new UserDO();
@@ -73,14 +76,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
         Long userId = userDO.getUserId();
         String token = JwtUtils.createToken(userId, username);
+        /**@author zzzi
+         * @date 2024/3/31 19:27
+         * 将用户的token保存到redis中
+         * 之后系统自动登录
+         * 到这里说明数据库插入成功，token可以正常生成
+         */
+        Integer userTokenExpireTime = randomUtils.createRandomTime();
+        redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
         log.warn("注册生成的token为：{}", token);
-        // 将当前注册用户的token进行缓存
-        // 在30分钟内登录就直接使用当前缓存，当前缓存过期才重新生成token
-        //Integer userTokenExpireTime = randomUtils.createRandomTime();
-        //redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
-
         //返回封装好的对象
-        return new UserDTO(userDO, token);
+        return new UserDTO(userDO, "login:token:" + token);
     }
 
     /**
@@ -91,42 +97,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      */
     @Override
     public UserDTO login(String username, String password) {
+        log.info("用户登录！！！！！！！");
         UserDO userDO = getUserDOByPasswordAndUserName(username, password);
         //没有该用户，用户名或密码错误
         if (userDO == null) {
             throw new UserException("登录失败，请确认是否注册或者用户名和密码是否正确");
         }
-        //到这里就是用户存在，此时先尝试获取现有token，没有再生成
+        //到这里就是用户存在，能获取到token就是用户已经登录
         Long userId = userDO.getUserId();
-        Integer userTokenExpireTime = randomUtils.createRandomTime();
-        String token = JwtUtils.createToken(userId, username);
-        //用户登录时尝试保存用户的token到缓存中
-        Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
-        /**@author zzzi
-         * @date 2024/3/30 16:19
-         * 已经存在token，说明此时已经登录过了
-         * 也就是获取互斥锁失败
-         */
-        if (!absent) {
+        String token = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + userId);
+        //获取到了token，说明用户已经登录
+        if (token != null) {
+            log.warn("注册生成的token为：{}", token);
             throw new UserException("当前用户已经登录，请不要重复登录");
         }
+        //没获取到token，说明用户已经很久没有登录了，注册时候创建的token失效了
+        // 此时新创建token，然后将token缓存到redis中
+        token = JwtUtils.createToken(userId, username);
+        Integer userTokenExpireTime = randomUtils.createRandomTime();
+        redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
 
-        log.warn("登录生成的token为：{}", token);
-        //将用户转换成json数据，然后存储到redis中
-        Gson gson = new Gson();
-        String userDOJson = gson.toJson(userDO);
-        /**@author zzzi
-         * @date 2024/3/26 23:09
-         * 将用户登录信息保存到String中，并设置过期值30-60分钟
-         * 后续一旦操作这个用户信息，过期时间自动更新
-         * 后缀使用user_id
-         */
-
-        Integer userInfoExpireTime = randomUtils.createRandomTime();
-        redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + userId, userDOJson, userInfoExpireTime, TimeUnit.MINUTES);
-
+        log.warn("登录重新生成的token为：{}", token);
         //返回封装的结果
-        return new UserDTO(userDO, token);
+        return new UserDTO(userDO, "login:token:" + token);
     }
 
 
@@ -134,31 +127,119 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * @author zzzi
      * @date 2024/3/27 10:50
      * 获取当前登录用户全部信息
-     * 用户信息变动，此时需要修改缓存，而不是删除缓存
+     * 缓存中没有就从数据库中获取，重建缓存
      */
     @Override
     public UserVO getUserInfo(String user_id) {
         log.info("待查询的用户id为：{}", user_id);
 
         String userDOJson = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id);
-
-        //缓存中没有获取到当前用户的信息
-        if (userDOJson == null || "".equals(userDOJson)) {
-            throw new UserException("用户未登录，请先去登录");
+        UserVO userVO = null;
+        //缓存中获取到当前用户的信息
+        if (userDOJson != null) {
+            //打包需要的信息返回
+            userVO = userService.packageUserVO(userDOJson);
+        } else {//缓存中没有
+            try {
+                //双重检查
+                /**@author zzzi
+                 * @date 2024/3/31 13:11
+                 * 互斥锁加的时候，不能与原来的键冲突
+                 * 并且加锁时锁的是当前线程
+                 */
+                long currentThreadId = Thread.currentThread().getId();
+                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex", currentThreadId + "");
+                if (!absent) {
+                    //不停地调用自己
+                    Thread.sleep(50);
+                    userService.getUserInfo(user_id);
+                }
+                //再次尝试从缓存中获取
+                userDOJson = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id);
+                //缓存中获取到当前用户的信息
+                if (userDOJson != null) {
+                    //打包需要的信息返回
+                    userVO = userService.packageUserVO(userDOJson);
+                } else {
+                    userVO = userService.rebuildUserInfoCache(user_id);
+                }
+            } catch (Exception e) {
+                log.error(e.getMessage());
+                throw new UserInfoException("获取用户信息失败");
+            } finally {
+                /**@author zzzi
+                 * @date 2024/3/31 15:13
+                 * 这里需要判断删除互斥锁的是不是当前进程
+                 */
+                String currentThreadId = Thread.currentThread().getId() + "";
+                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
+                //加锁的就是当前线程才解锁
+                if (threadId.equals(currentThreadId)) {
+                    redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
+                }
+            }
         }
+        return userVO;
+    }
 
-        //在这里就是获取到了用户登录信息，此时将其转换成java对象
+    /**
+     * @author zzzi
+     * @date 2024/3/31 13:08
+     * 重建用户信息缓存
+     */
+    @Override
+    public UserVO rebuildUserInfoCache(String user_id) {
+        LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserDO::getUserId, user_id);
+        UserDO userDO = userMapper.selectOne(queryWrapper);
+        //数据库中也没有，此时缓存中需要保存默认值,并且需要抛出异常
+        if (userDO == null) {
+            redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + user_id, RedisDefaultValue.REDIS_DEFAULT_VALUE);
+            //默认值5分钟过期
+            redisTemplate.expire(RedisKeys.USER_INFO_PREFIX + user_id, 5, TimeUnit.MINUTES);
+            return userService.packageUserVO(RedisDefaultValue.REDIS_DEFAULT_VALUE);
+        }
+        //到这里就是查询到了真的数据
+        Gson gson = new Gson();
+        String userDOJson = gson.toJson(userDO);
+        //重建缓存,先删除默认值
+        redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id);
+        redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + user_id, userDOJson);
+        //更新用户token有效期
+        Integer userTokenExpireTime = randomUtils.createRandomTime();
+        redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + user_id, userTokenExpireTime, TimeUnit.MINUTES);
+        return userService.packageUserVO(userDOJson);
+    }
+
+
+    /**
+     * @author zzzi
+     * @date 2024/3/31 12:46
+     * 根据从缓存中获取到的用户信息封装前端需要的信息
+     */
+    @Override
+    public UserVO packageUserVO(String userDOJson) {
+        //防止缓存穿透的默认值
+        if (RedisDefaultValue.REDIS_DEFAULT_VALUE.equals(userDOJson)) {
+            return null;
+        }
+        //这里就是真正的缓存中的用户信息
         Gson gson = new Gson();
         UserDO userDO = gson.fromJson(userDOJson, UserDO.class);
 
-        //用户信息获取成功，代表当前用户已登录并且有操作，此时更新token和用户信息的有效期
-        Integer userTokenExpireTime = randomUtils.createRandomTime();
-        Integer userInfoExpireTime = randomUtils.createRandomTime();
-        redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + user_id, userTokenExpireTime, TimeUnit.MINUTES);
-        redisTemplate.expire(RedisKeys.USER_INFO_PREFIX + user_id, userInfoExpireTime, TimeUnit.MINUTES);
+        UserVO userVO = new UserVO();
+        userVO.setId(userDO.getUserId());
+        userVO.setName(userDO.getUsername());
+        userVO.setFollow_count(userDO.getFollowCount());
+        userVO.setFollower_count(userDO.getFollowerCount());
+        userVO.setAvatar(userDO.getAvatar());
+        userVO.setBackground_image(userDO.getBackgroundImage());
+        userVO.setSignature(userDO.getSignature());
+        userVO.setTotal_favorited(userDO.getTotalFavorited());
+        userVO.setWork_count(userDO.getWorkCount());
+        userVO.setFavorite_count(userDO.getFavoriteCount());
+        return userVO;
 
-        //将查询到的userDO转换成前端需要的userVO
-        return packageUserVO(userDO);
     }
 
 
@@ -180,45 +261,4 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         //返回查询到的userDO
         return userDO;
     }
-
-    /**
-     * @author zzzi
-     * @date 2024/3/27 11:20
-     * 封装前端需要的数据
-     */
-    public UserVO packageUserVO(UserDO userDO) {
-        UserVO userVO = new UserVO();
-        userVO.setId(userDO.getUserId());
-        userVO.setName(userDO.getUsername());
-        userVO.setFollow_count(userDO.getFollowCount());
-        userVO.setFollower_count(userDO.getFollowerCount());
-        userVO.setAvatar(userDO.getAvatar());
-        userVO.setBackground_image(userDO.getBackgroundImage());
-        userVO.setSignature(userDO.getSignature());
-        userVO.setTotal_favorited(userDO.getTotalFavorited());
-        userVO.setWork_count(userDO.getWorkCount());
-        userVO.setFavorite_count(userDO.getFavoriteCount());
-        return userVO;
-    }
-
-    /**
-     * @author zzzi
-     * @date 2024/3/27 11:15
-     * 根据当前用户的id判断与userDO的关注关系
-     */
-    public UserVO packageUserVO(UserDO userDO, Long currentUserID) {
-        return null;
-
-    }
-
-    /**
-     * @author zzzi
-     * @date 2024/3/27 15:22
-     * 投稿时更新用户作品数
-     */
-    public void updateUserWorkCount(Long userId) {
-
-    }
-
-
 }
