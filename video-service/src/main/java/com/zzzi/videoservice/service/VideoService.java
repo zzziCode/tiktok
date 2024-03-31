@@ -2,6 +2,7 @@ package com.zzzi.videoservice.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.zzzi.common.result.CommonVO;
+import com.zzzi.common.result.UserVO;
 import com.zzzi.videoservice.entity.VideoDO;
 import com.zzzi.videoservice.result.VideoListVO;
 import com.zzzi.videoservice.result.VideoVO;
@@ -18,4 +19,11 @@ public interface VideoService extends IService<VideoDO> {
 
     List<VideoVO> getFeedList(Long latest_time, String token);
 
+    VideoDO upload(Long authorId, MultipartFile data, String title);
+
+    List<VideoVO> packageVideoListVO(List<String> userWorkList, UserVO userVO);
+
+    List<VideoVO> rebuildUserWorkListCache(Long user_id, UserVO userVO);
+
+    VideoVO packageVideoVO(VideoDO videoDO, UserVO userVO);
 }

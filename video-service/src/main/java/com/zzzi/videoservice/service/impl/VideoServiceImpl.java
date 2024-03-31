@@ -50,6 +50,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     private StringRedisTemplate redisTemplate;
     @Autowired
     private RabbitTemplate rabbitTemplate;
+    @Autowired
+    private VideoService videoService;
     @Value("${video_save_path}")
     public String VIDEO_SAVE_PATH;
     @Value("${cover_save_path}")
@@ -75,9 +77,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         Long authorId = JwtUtils.getUserIdByToken(token);
 
         //视频上传
-        VideoDO videoDO = upload(authorId, data, title);
+        VideoDO videoDO = videoService.upload(authorId, data, title);
         //将当前对象转换成json格式
         //将当前数据插入视频表中
+        /**@author zzzi
+         * @date 2024/3/31 15:48
+         * 先更新数据库再更新缓存
+         */
         videoMapper.insert(videoDO);
 
         Gson gson = new Gson();
@@ -88,7 +94,12 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
 
             //1. 拿到互斥锁
             //尝试拿到互斥锁，防止同一时间投稿多个重复作品
-            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, "");
+            /**@author zzzi
+             * @date 2024/3/31 15:37
+             * 当前线程加上互斥锁
+             */
+            long currentThreadId = Thread.currentThread().getId();
+            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "");
             //没拿到互斥锁，说明当前视频已经存在并且正在被操作
             if (!absent) {
                 throw new VideoException("视频已经存在");
@@ -96,8 +107,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
 
             //2. 更新推荐视频缓存，主要是插入当前作品，因为当前作品新投稿，为最新作品
             //按照时间降序排列
-            redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED,
-                    videoDOJson, videoDO.getCreateTime().getTime());
+            redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED, videoDOJson, videoDO.getCreateTime().getTime());
             //推荐视频缓存中的数据过多，此时删除前100个
             if (redisTemplate.opsForZSet().size(RedisKeys.VIDEO_FEED) > VIDEO_FEED_MAX_SIZE) {
                 // redis中zset保存的视频超过5000个了，移除掉前100个视频
@@ -128,10 +138,18 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             log.info("投稿成功");
         } catch (Exception e) {
             log.error(e.getMessage());
-            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             throw new VideoException("视频保存失败");
         } finally {//释放互斥锁
-            redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            /**@author zzzi
+             * @date 2024/3/31 15:37
+             * 需要是加锁的线程才能解锁
+             */
+            String currentThreadId = Thread.currentThread().getId() + "";
+            String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            //加锁的就是当前线程才解锁
+            if (threadId.equals(currentThreadId)) {
+                redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            }
         }
     }
 
@@ -163,30 +181,40 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         //      1.2 是真的有
         //2. 缓存中没有：此时缓存重建，重建之前需要拿到互斥锁并进行双重检查，防止缓存多次重建
         //缓存重建需要注意的是数据库中没有数据时，此时缓存中要保存设置有效期的默认值
-        if (userWorkList.size() > 0) {//缓存中有
-            return packageVideoListVO(userWorkList, userVO);
+        if (!userWorkList.isEmpty()) {//缓存中有
+            return videoService.packageVideoListVO(userWorkList, userVO);
         } else {//缓存中没有
             try {
                 //1. 先尝试获取互斥锁，没获取到一直尝试，互斥锁的key为用户作品列表的key
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id, "");
+                long currentThreadId = Thread.currentThread().getId();
+                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex", currentThreadId + "");
                 //没获取到互斥锁，说明当前用户的作品列表正在被被人操作，此时重试
                 if (!absent) {
                     Thread.sleep(50);
                     //不停地调用自己
-                    getPublishListByAuthorId(token, user_id);
+                    videoService.getPublishListByAuthorId(token, user_id);
                 }
                 //2. 获取到互斥锁进行二次判断，防止缓存重建多次
                 userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + user_id, 0, -1);
-                if (userWorkList.size() > 0) {//缓存中有
-                    return packageVideoListVO(userWorkList, userVO);
+                if (!userWorkList.isEmpty()) {//缓存中有
+                    return videoService.packageVideoListVO(userWorkList, userVO);
                 }
                 //3. 到这里才真正进行缓存重建
-                return rebuildUserWorkListCache(user_id, userVO);
+                return videoService.rebuildUserWorkListCache(user_id, userVO);
             } catch (Exception e) {
                 log.error(e.getMessage());
                 throw new VideoException("获取用户作品列表失败");
             } finally {//最后释放互斥锁
-                redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id);
+                /**@author zzzi
+                 * @date 2024/3/31 15:37
+                 * 需要是加锁的线程才能解锁
+                 */
+                String currentThreadId = Thread.currentThread().getId() + "";
+                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
+                //加锁的就是当前线程才解锁
+                if (threadId.equals(currentThreadId)) {
+                    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
+                }
             }
         }
     }
@@ -215,7 +243,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      * @date 2024/3/28 16:16
      * 重建用户作品缓存，然后将查询到的数据返回
      */
-    private List<VideoVO> rebuildUserWorkListCache(Long user_id, UserVO userVO) {
+    @Override
+    public List<VideoVO> rebuildUserWorkListCache(Long user_id, UserVO userVO) {
         //从数据库中查询到当前用户的所有数据，有两种情况：
         //1. 查询到了数据，此时正常重建缓存
         //2. 没查询到数据，为了防止缓存穿透，此时存储默认值
@@ -225,7 +254,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         List<VideoDO> videoDOList = videoMapper.selectList(queryWrapper);
 
         List<String> userWorkList = new ArrayList<>();
-        if (videoDOList.size() == 0) {//没有作品，存储默认值
+        if (videoDOList.size() == 0 || videoDOList == null) {//没有作品，存储默认值
             //将数据缓存到用户作品缓存中
             userWorkList.add(RedisDefaultValue.REDIS_DEFAULT_VALUE);
             /**@author zzzi
@@ -235,7 +264,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + user_id, RedisDefaultValue.REDIS_DEFAULT_VALUE);
             redisTemplate.expire(RedisKeys.USER_WORKS_PREFIX + user_id, 5, TimeUnit.MINUTES);
             //然后将数据打包返回
-            return packageVideoListVO(userWorkList, userVO);
+            return videoService.packageVideoListVO(userWorkList, userVO);
         } else {//查询到了数据，存储真实值
             Gson gson = new Gson();
             for (VideoDO videoDO : videoDOList) {
@@ -258,7 +287,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + user_id);
         }
         //然后将数据打包返回
-        return packageVideoListVO(userWorkList, userVO);
+        return videoService.packageVideoListVO(userWorkList, userVO);
     }
 
     /**
@@ -266,7 +295,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      * @date 2024/3/28 15:46
      * 将从缓存中获取到的List<String> userWorkList
      */
-    private List<VideoVO> packageVideoListVO(List<String> userWorkList, UserVO userVO) {
+    @Override
+    public List<VideoVO> packageVideoListVO(List<String> userWorkList, UserVO userVO) {
         /**@author zzzi
          * @date 2024/3/28 15:57
          * 防止缓存穿透，此时直接返回null,缓存中已经存储了默认值
@@ -281,7 +311,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         for (String videoDOJson : userWorkList) {
             VideoDO videoDO = gson.fromJson(videoDOJson, VideoDO.class);
             //将每一个videoDO转换成videoVO
-            VideoVO videoVO = packageVideoVO(videoDO, userVO);
+            VideoVO videoVO = videoService.packageVideoVO(videoDO, userVO);
             videoVOList.add(videoVO);
         }
         return videoVOList;
@@ -294,7 +324,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      * 1. 获取用户作品列表时，用户的关注状态默认为true
      * 2. 获取推荐视频列表时，用户的关注状态需要手动判断
      */
-    private VideoVO packageVideoVO(VideoDO videoDO, UserVO userVO) {
+    @Override
+    public VideoVO packageVideoVO(VideoDO videoDO, UserVO userVO) {
         VideoVO videoVO = new VideoVO();
         videoVO.setId(videoDO.getVideoId());
         videoVO.setAuthor(userVO);
@@ -317,7 +348,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      * @date 2024/3/27 16:13
      * 封装一个视频上传的方法，将视频和封面保存到本地和云端
      */
-    private VideoDO upload(Long authorId, MultipartFile data, String title) {
+    @Override
+    public VideoDO upload(Long authorId, MultipartFile data, String title) {
         try {
             String videoName = authorId + "_" + UUID.randomUUID() + "_video" + ".mp4";
             String coverName = authorId + "_" + UUID.randomUUID() + "_cover" + ".jpg";
@@ -333,8 +365,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             File cover = VideoUtils.fetchPic(video, COVER_SAVE_PATH + coverName);
 
             //上传文件
-            String coverUrl = uploadUtils.upload(cover, "_cover.jpg");
-            String videoUrl = uploadUtils.upload(video, "_video.mp4");
+            //String coverUrl = uploadUtils.upload(cover, "_cover.jpg");
+            //String videoUrl = uploadUtils.upload(video, "_video.mp4");
             /**@author zzzi
              * @date 2024/3/24 10:05
              * 拿到本地和云端地址，数据库想保存哪个就保存哪个
@@ -347,11 +379,11 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             log.info("视频本地地址为：{}", VIDEO_SAVE_PATH + videoName);
             VideoDO videoDO = new VideoDO();
             videoDO.setAuthorId(authorId);
-            //videoDO.setCoverUrl(COVER_SAVE_PATH + coverName);
-            //videoDO.setPlayUrl(VIDEO_SAVE_PATH + videoName);
+            videoDO.setCoverUrl(COVER_SAVE_PATH + coverName);
+            videoDO.setPlayUrl(VIDEO_SAVE_PATH + videoName);
             //存放真实地址
-            videoDO.setPlayUrl(videoUrl);
-            videoDO.setCoverUrl(coverUrl);
+            //videoDO.setPlayUrl(videoUrl);
+            //videoDO.setCoverUrl(coverUrl);
             videoDO.setTitle(title);
 
             return videoDO;

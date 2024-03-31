@@ -17,11 +17,11 @@ public class VideoListVO {
 
     //成功调用这个函数
     public static VideoListVO success(String status_msg, List<VideoVO> video_list) {
-        return new VideoListVO(1, status_msg, video_list);
+        return new VideoListVO(0, status_msg, video_list);
     }
 
     //失败调用这个函数
     public static VideoListVO fail(String status_msg) {
-        return new VideoListVO(1, status_msg, null);
+        return new VideoListVO(-1, status_msg, null);
     }
 }

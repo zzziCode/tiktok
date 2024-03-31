@@ -40,6 +40,8 @@ public class VideoController {
      */
     @GetMapping("/publish/list")
     public VideoListVO getPublishList(String token, Long user_id) {
+        //截取真正的token，去掉前缀"login:token:"
+        token = token.substring(12);
         List<VideoVO> videoVOList = videoService.getPublishListByAuthorId(token, user_id);
         if (videoVOList == null)
             return VideoListVO.fail("用户没有作品");
@@ -55,6 +57,8 @@ public class VideoController {
      */
     @GetMapping("/feed")
     public void getFeedList(Long latest_time, String token) {
+        //截取真正的token，去掉前缀"login:token:"
+        token = token.substring(12);
         List<VideoVO> videoVOList = videoService.getFeedList(latest_time, token);
         //根据拿到的作品列表获取到下次推荐的时间节点next_time
     }
@@ -67,6 +71,8 @@ public class VideoController {
      */
     @PostMapping("/publish/action")
     public CommonVO postVideo(MultipartFile data, String token, String title) {
+        //截取真正的token，去掉前缀"login:token:"
+        token = token.substring(12);
         videoService.postVideo(data, token, title);
 
         //只要不出错误，说明成功投稿
