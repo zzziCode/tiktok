@@ -29,7 +29,7 @@ public class UserInfoVO {
          * todo：用户自己对自己的关注状态，先设置为false,其实应该根据当前用户的关系来动态设置
          */
         user.setIs_follow(false);
-        return new UserInfoVO(1, "成功", user);
+        return new UserInfoVO(0, "成功", user);
     }
 
     //失败调用这个函数

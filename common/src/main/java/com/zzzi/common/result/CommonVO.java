@@ -17,7 +17,7 @@ public class CommonVO {
     private String status_msg;
 
     public static CommonVO success(String status_msg) {
-        return new CommonVO(1, status_msg);
+        return new CommonVO(0, status_msg);
     }
 
     public static CommonVO fail(String status_msg) {
