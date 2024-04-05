@@ -1,0 +1,136 @@
+spring:
+  # 数据库相关配置
+  main:
+    allow-bean-definition-overriding: true
+  shardingsphere:
+    datasource:
+      ds:
+        maxPoolSize: 100
+      # master数据库连接信息
+      master0:
+        driver-class-name: com.mysql.jdbc.Driver
+        maxPoolSize: 100
+        minPoolSize: 5
+        username: root
+        password: 123456
+        type: com.alibaba.druid.pool.DruidDataSource
+        url: jdbc:mysql://106.75.247.170:3306/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
+      # slaver数据库连接信息
+      slaver0:
+        driver-class-name: com.mysql.jdbc.Driver
+        maxPoolSize: 100
+        minPoolSize: 5
+        username: root
+        password: 123456
+        type: com.alibaba.druid.pool.DruidDataSource
+        url: jdbc:mysql://106.75.247.170:3307/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
+      # 配置数据源
+      names: master0,slaver0
+    # 显示sql
+    props:
+      sql:
+        show: true
+    # 配置默认数据源master 默认数据源,主要用于写
+    sharding:
+      default-database-strategy:
+        inline:
+          sharding-column: user_id
+          algorithm-expression: master$->{user_id % 1}
+      # 配置分表策略
+      tables:
+        comment:
+          actual-data-nodes: master$->{0}.comment_$->{1..8}
+          table-strategy:
+            inline:
+              sharding-column: comment_id
+              algorithm-expression: comment_$->{comment_id % 8 + 1}
+        favorite:
+          actual-data-nodes: master$->{0}.favorite_$->{1..8}
+          table-strategy:
+            inline:
+              sharding-column: favorite_id
+              algorithm-expression: favorite_$->{favorite_id % 8 + 1}
+        user_follows:
+          actual-data-nodes: master$->{0}.user_follows_$->{1..4}
+          table-strategy:
+            inline:
+              sharding-column: user_follows_id
+              algorithm-expression: user_follows_$->{user_follows_id % 4 + 1}
+        users:
+          actual-data-nodes: master$->{0}.users_$->{1..2}
+          table-strategy:
+            inline:
+              sharding-column: user_id
+              algorithm-expression: users_$->{user_id % 2 + 1}
+        video:
+          actual-data-nodes: master$->{0}.video_$->{1..8}
+          table-strategy:
+            inline:
+              sharding-column: video_id
+              algorithm-expression: video_$->{video_id % 8 + 1}
+      master-slave-rules:
+        master0:
+          master-data-source-name: master0
+          slave-data-source-names: slaver0
+  application:
+    name: userservice
+  mvc:
+    static-path-pattern:server: /**
+  cloud:
+    # nacos相关地址
+    nacos:
+      server-addr: 106.75.247.170:8848
+  rabbitmq:
+    host: 106.75.247.170
+    port: 5672
+    username: root
+    password: 123456
+    virtual-host: / # 虚拟主机
+    listener:
+      direct:
+        prefetch: 1 # 每个消费者每次只消费一条消息，不会出现高消费的情况，也就是承担不了那么多消息
+  # 最大文件大小
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  redis:
+    host: localhost
+    port: 6379
+    lettuce:
+      cluster:
+        refresh:
+          adaptive: true
+          period: 600000
+    pool:
+      max-active: 8 # 连接池最大连接数
+      max-wait: -1 # 最大阻塞等待时间没有限制
+      min-idle: 0 # 连接池中最小空闲连接数
+      timeout: 200 # 连接超时时间
+
+
+server:
+  port: 9191
+# 缓存过期值随机打散(30分钟到60分钟)
+random_start: 30
+random_end: 60
+
+mybatis-plus:
+  configuration:
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射
+    map-underscore-to-camel-case: true
+    # 日志输出到控制台
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+logging:
+  level:
+    # 这个包下的日志记录级别为debug
+    com.zzzi: debug
+  pattern:
+    dateformat: MM-dd HH:mm:ss:SSS
+feign:
+  httpclient:
+    enabled: true # 支持HttpClient的开关
+    max-connections: 200 # 最大连接数
+    max-connections-per-route: 50 # 单个路径的最大连接数
+# 防止远程调用出错
+ribbon.nacos.enabled: true

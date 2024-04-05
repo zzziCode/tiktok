@@ -1,0 +1,34 @@
+server:
+  port: 10010
+logging:
+  level:
+    com.zzzi: debug
+  pattern:
+    dateformat: MM-dd HH:mm:ss:SSS
+spring:
+  application:
+    name: gateway
+  servlet:
+    multipart:
+      # 单词请求和单词文件的最大值
+      max-request-size: 1024MB
+      max-file-size: 1024MB
+  cloud:
+    # nacos相关地址
+    nacos:
+      server-addr: 106.75.247.170:8848
+    # 网关相关配置
+    gateway:
+      discovery:
+        locator:
+          # 开启从注册中心动态创建路由的功能，利用微服务名进行路由
+          enabled: true
+      routes:
+        - id: userservice # 路由标示，必须唯一
+          uri: lb://userservice # 路由的目标地址
+          predicates: # 路由断言，判断请求是否符合规则
+            - Path=/douyin/user/**,/douyin/relation/**,/douyin/message/**
+        - id: videoservice
+          uri: lb://videoservice
+          predicates:
+            - Path=/douyin/feed/**,/douyin/publish/**,/douyin/favorite/**,/douyin/comment/**
