@@ -1,35 +1,24 @@
 package com.zzzi.videoservice.controller;
 
 import com.zzzi.common.result.CommonVO;
-import com.zzzi.common.utils.UploadUtils;
-import com.zzzi.common.utils.VideoUtils;
-import com.zzzi.videoservice.entity.VideoDO;
-import com.zzzi.videoservice.result.VideoListVO;
-import com.zzzi.videoservice.result.VideoVO;
+import com.zzzi.common.result.VideoFeedListVO;
+import com.zzzi.common.result.VideoListVO;
+import com.zzzi.common.result.VideoVO;
+import com.zzzi.videoservice.dto.VideoFeedDTO;
 import com.zzzi.videoservice.service.VideoService;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.weaver.ast.Var;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/douyin")
 @Slf4j
 public class VideoController {
-
     @Autowired
     private VideoService videoService;
-
 
     /**
      * @author zzzi
@@ -40,8 +29,10 @@ public class VideoController {
      */
     @GetMapping("/publish/list")
     public VideoListVO getPublishList(String token, Long user_id) {
+        log.info("获取用户投稿列表,token为：{}，user_id为：{}", token, user_id);
         //截取真正的token，去掉前缀"login:token:"
-        token = token.substring(12);
+        if (token.startsWith("login:token:"))
+            token = token.substring(12);
         List<VideoVO> videoVOList = videoService.getPublishListByAuthorId(token, user_id);
         if (videoVOList == null)
             return VideoListVO.fail("用户没有作品");
@@ -54,13 +45,33 @@ public class VideoController {
      * 视频的推流，每次推流三十个视频
      * 如果没有传递latest_time，就按照当前时间推荐30个，并返回当前推荐视频的最早时间
      * 30个视频刷完按照这个最早时间继续推荐
+     * <p>
+     * 没传latest_time，默认为最新时间
+     * 没传token，就不判断当前用户和视频用户的关注关系和视频的点赞关系
      */
     @GetMapping("/feed")
-    public void getFeedList(Long latest_time, String token) {
+    public VideoFeedListVO getFeedList(@RequestParam(required = false) Long latest_time,
+                                       @RequestParam(required = false) String token) {
+        log.info("视频推荐,token为 :{}", token);
         //截取真正的token，去掉前缀"login:token:"
-        token = token.substring(12);
-        List<VideoVO> videoVOList = videoService.getFeedList(latest_time, token);
-        //根据拿到的作品列表获取到下次推荐的时间节点next_time
+        if (token != null && token.startsWith("login:token:"))
+            token = token.substring(12);
+        /**@author zzzi
+         * @date 2024/4/2 16:50
+         * 时间没传，默认从当前时间向前推荐
+         */
+        if (latest_time == null)
+            latest_time = System.currentTimeMillis();
+        //默认下次也从当前时间开始推荐，这样视频少的时候可以循环推荐
+        VideoFeedDTO videoFeedDTO = videoService.getFeedList(latest_time, token);
+        if (videoFeedDTO != null) {
+            List<VideoVO> videoVOList = videoFeedDTO.getFeed_list();
+
+            //更新下次推荐时间
+            Long next_time = videoFeedDTO.getNext_time();
+            return VideoFeedListVO.success("获取推荐视频成功", next_time, videoVOList);
+        }
+        return VideoFeedListVO.fail("获取推荐视频失败");
     }
 
     /**
@@ -71,8 +82,10 @@ public class VideoController {
      */
     @PostMapping("/publish/action")
     public CommonVO postVideo(MultipartFile data, String token, String title) {
+        log.info("用户投稿,token 为：{}", token);
         //截取真正的token，去掉前缀"login:token:"
-        token = token.substring(12);
+        if (token.startsWith("login:token:"))
+            token = token.substring(12);
         videoService.postVideo(data, token, title);
 
         //只要不出错误，说明成功投稿

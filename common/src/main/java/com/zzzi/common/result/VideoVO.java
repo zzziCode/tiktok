@@ -1,8 +1,9 @@
-package com.zzzi.videoservice.result;
+package com.zzzi.common.result;
 
-import com.zzzi.common.result.UserVO;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+
+import java.util.Objects;
 
 /**@author zzzi
  * @date 2024/3/28 14:26
@@ -82,5 +83,22 @@ public class VideoVO {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    /**@author zzzi
+     * @date 2024/4/2 18:08
+     * 由于要进行比较，所以要重写equals和hashCode
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        VideoVO videoVO = (VideoVO) o;
+        return id.equals(videoVO.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

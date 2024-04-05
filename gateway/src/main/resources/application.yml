@@ -17,7 +17,7 @@ spring:
     # nacos相关地址
     nacos:
       server-addr: 106.75.247.170:8848
-
+    # 网关相关配置
     gateway:
       discovery:
         locator:

@@ -1,12 +1,10 @@
 package com.zzzi.userservice.controller;
 
 
-import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.UserInfoVO;
 import com.zzzi.userservice.dto.UserDTO;
-import com.zzzi.userservice.result.UserRegisterLoginVO;
+import com.zzzi.common.result.UserRegisterLoginVO;
 import com.zzzi.common.result.UserVO;
-import com.zzzi.userservice.service.UserFollowService;
 import com.zzzi.userservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +18,6 @@ public class UserController {
 
     @Autowired
     private UserService userService;
-
 
     /**
      * @author zzzi
@@ -60,7 +57,9 @@ public class UserController {
     @GetMapping
     public UserInfoVO userInfo(String user_id, @RequestParam(required = false) String token) {
         log.info("获取用户信息的用户id为：{}，用户token为：{}", user_id, token);
-        token = token.substring(12);
+        if (token != null&&token.startsWith("login:token:")) {
+            token = token.substring(12);
+        }
         log.info("截取之后的用户token为：{}", token);
         UserVO user = userService.getUserInfo(user_id);
         if (user == null)

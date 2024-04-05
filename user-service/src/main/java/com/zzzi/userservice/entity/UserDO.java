@@ -47,19 +47,4 @@ public class UserDO {
     @TableField(fill = FieldFill.INSERT)
     private Integer favoriteCount;
 
-    /**
-     * @author zzzi
-     * @date 2024/3/25 16:12
-     * 为了缓存用户登录信息时使用
-     * 用户登录缓存只缓存不变信息
-     */
-    public UserDO(Long userId, String username, String email, String password, Date createTime, Date updateTime) {
-        this.userId = userId;
-        this.username = username;
-        this.email = email;
-        this.password = password;
-        this.createTime = createTime;
-        this.updateTime = updateTime;
-    }
-
 }

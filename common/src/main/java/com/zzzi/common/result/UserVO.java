@@ -3,7 +3,10 @@ package com.zzzi.common.result;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 
-/**@author zzzi
+import java.util.Objects;
+
+/**
+ * @author zzzi
  * @date 2024/3/28 14:28
  * 这个类型多个模块都能用到，于是抽取到这里
  */
@@ -15,6 +18,14 @@ public class UserVO {
     private String name;
     private Integer follow_count;
     private Integer follower_count;
+    /**
+     * @author zzzi
+     * @date 2024/4/1 13:49
+     * 这个字段代表我是否关注了当前用户
+     * 获取关注列表时，这个值肯定为true
+     * 获取粉丝列表时，只有我也关注了他才会为true
+     * 获取好友列表时，这个值肯定为true
+     */
     private boolean is_follow;
     //下面的字段是新增的
     private String avatar;
@@ -116,5 +127,24 @@ public class UserVO {
 
     public void setFavorite_count(Integer favorite_count) {
         this.favorite_count = favorite_count;
+    }
+
+    /**
+     * @author zzzi
+     * @date 2024/4/1 14:27
+     * 因为要比较两个UserVO是否相等，所以需要重写equals和hashCode方法
+     * 比较时id一样，就说明两个实体是相等的，因为id都是唯一的
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserVO userVO = (UserVO) o;
+        return id.equals(userVO.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

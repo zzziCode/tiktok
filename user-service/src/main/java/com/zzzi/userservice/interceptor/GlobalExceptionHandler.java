@@ -1,12 +1,16 @@
 package com.zzzi.userservice.interceptor;
 
 import com.zzzi.common.exception.FollowException;
+import com.zzzi.common.exception.RelationException;
 import com.zzzi.common.exception.UserException;
 import com.zzzi.common.exception.UserInfoException;
 import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.UserInfoVO;
-import com.zzzi.userservice.result.UserRegisterLoginVO;
+import com.zzzi.common.result.UserRegisterLoginVO;
+import com.zzzi.common.result.UserRelationListVO;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import javax.security.auth.login.LoginException;
@@ -22,7 +26,6 @@ import javax.security.auth.login.LoginException;
 @Slf4j
 public class GlobalExceptionHandler {
 
-
     @ExceptionHandler(UserException.class)
     public UserRegisterLoginVO RegisterExceptionHandler(UserException ex) {
         log.error(ex.getMessage());
@@ -33,8 +36,8 @@ public class GlobalExceptionHandler {
         if (ex.getMessage().contains("用户名被占用，请重新输入用户名")) {
             return UserRegisterLoginVO.fail("用户名被占用，请重新输入用户名");
         }
-        if (ex.getMessage().contains("登录失败，请确认是否注册或者用户名和密码是否正确")) {
-            return UserRegisterLoginVO.fail("登录失败，请确认是否注册或者用户名和密码是否正确");
+        if (ex.getMessage().contains("登录失败，请确认用户是否注册或者用户名和密码是否正确")) {
+            return UserRegisterLoginVO.fail("登录失败，请确认用户是否注册或者用户名和密码是否正确");
         }
         if (ex.getMessage().contains("用户未登录，请先去登录")) {
             return UserRegisterLoginVO.fail("用户未登录，请先去登录");
@@ -54,11 +57,37 @@ public class GlobalExceptionHandler {
         return CommonVO.fail("请先登录");
     }
 
-    @ExceptionHandler(Exception.class)
-    public CommonVO CommonExceptionHandler(Exception ex) {
-        ex.printStackTrace();
+    @ExceptionHandler(RuntimeException.class)
+    public CommonVO CommonExceptionHandler(RuntimeException ex) {
         log.error(ex.getMessage());
+        if (ex.getMessage().contains("用户点赞失败")) {
+            return CommonVO.fail("用户点赞失败");
+        }
+        if (ex.getMessage().contains("请勿重复点赞")) {
+            return CommonVO.fail("请勿重复点赞");
+        }
+        if (ex.getMessage().contains("取消点赞失败")) {
+            return CommonVO.fail("取消点赞失败");
+        }
+        if(ex.getMessage().contains("用户发送消息失败")){
+            return CommonVO.fail("用户发送消息失败");
+        }
         return CommonVO.fail("出现错误");
+    }
+
+    @ExceptionHandler(RelationException.class)
+    public UserRelationListVO RelationExceptionHandler(RelationException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("获取用户关注列表失败")) {
+            return UserRelationListVO.fail("获取用户关注列表失败");
+        }
+        if (ex.getMessage().contains("获取用户粉丝列表失败")) {
+            return UserRelationListVO.fail("获取用户粉丝列表失败");
+        }
+        if (ex.getMessage().contains("获取用户好友列表失败")) {
+            return UserRelationListVO.fail("获取用户好友列表失败");
+        }
+        return UserRelationListVO.fail("出现错误");
     }
 
     @ExceptionHandler(UserInfoException.class)
@@ -66,9 +95,6 @@ public class GlobalExceptionHandler {
         log.error(ex.getMessage());
         if (ex.getMessage().contains("获取用户信息失败")) {
             return UserInfoVO.fail("获取用户信息失败");
-        }
-        if (ex.getMessage().contains("获取用户关注列表失败")) {
-            return UserInfoVO.fail("获取用户关注列表失败");
         }
 
         return UserInfoVO.fail("未知错误");
@@ -82,6 +108,15 @@ public class GlobalExceptionHandler {
         }
         if (ex.getMessage().contains("取消关注失败")) {
             return CommonVO.fail("取消关注失败");
+        }
+        if (ex.getMessage().contains("自己不能取消关注自己")) {
+            return CommonVO.fail("自己不能取消关注自己");
+        }
+        if (ex.getMessage().contains("自己不能关注自己")) {
+            return CommonVO.fail("自己不能关注自己");
+        }
+        if(ex.getMessage().contains("用户关注失败")){
+            return CommonVO.fail("用户关注失败");
         }
         return CommonVO.fail("未知错误");
     }

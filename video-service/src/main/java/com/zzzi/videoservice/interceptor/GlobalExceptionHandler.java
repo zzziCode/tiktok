@@ -1,8 +1,8 @@
 package com.zzzi.videoservice.interceptor;
 
-import com.zzzi.common.exception.UserException;
-import com.zzzi.common.exception.VideoException;
+import com.zzzi.common.exception.*;
 import com.zzzi.common.result.CommonVO;
+import com.zzzi.common.result.VideoListVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -47,6 +47,9 @@ public class GlobalExceptionHandler {
         if (ex.getMessage().contains("当前用户未登录")) {
             return CommonVO.fail("当前用户未登录");
         }
+        if (ex.getMessage().contains("更新视频信息失败")) {
+            return CommonVO.fail("更新视频信息失败");
+        }
         return CommonVO.fail("未知错误");
     }
 
@@ -65,9 +68,46 @@ public class GlobalExceptionHandler {
         log.error(ex.getMessage());
         return CommonVO.fail("请先登录");
     }
+
     @ExceptionHandler(Exception.class)
     public CommonVO CommonExceptionHandler(Exception ex) {
         log.error(ex.getMessage());
         return CommonVO.fail("未知错误");
+    }
+
+    @ExceptionHandler(VideoListException.class)
+    public VideoListVO VideoListExceptionHandler(VideoListException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("当前用户未登录")) {
+            return VideoListVO.fail("当前用户未登录");
+        }
+        if (ex.getMessage().contains("获取用户作品列表失败")) {
+            return VideoListVO.fail("获取用户作品列表失败");
+        }
+        if (ex.getMessage().contains("获取用户喜欢列表失败")) {
+            return VideoListVO.fail("获取用户喜欢列表失败");
+        }
+        return VideoListVO.fail("未知错误");
+    }
+
+    @ExceptionHandler(CommentActionException.class)
+    public VideoListVO CommentActionExceptionHandler(CommentActionException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("用户评论失败")) {
+            return VideoListVO.fail("用户评论失败");
+        }
+        if (ex.getMessage().contains("用户删除评论失败")) {
+            return VideoListVO.fail("用户删除评论失败");
+        }
+        return VideoListVO.fail("未知错误");
+    }
+
+    @ExceptionHandler(CommentListException.class)
+    public VideoListVO CommentListExceptionHandler(CommentListException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("获取当前视频评论列表失败")) {
+            return VideoListVO.fail("获取当前视频评论列表失败");
+        }
+        return VideoListVO.fail("未知错误");
     }
 }

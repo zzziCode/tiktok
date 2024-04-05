@@ -1,15 +1,10 @@
 package com.zzzi.userservice.listener;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
-import com.zzzi.common.constant.RedisKeys;
-import com.zzzi.common.exception.UserException;
-import com.zzzi.common.utils.MD5Utils;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.userservice.mapper.UserMapper;
-import com.zzzi.userservice.utils.UpdateUserInfoUtils;
+import com.zzzi.common.utils.UpdateUserInfoUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.Exchange;
@@ -17,11 +12,10 @@ import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author zzzi
@@ -50,17 +44,15 @@ public class PostVideoListener {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(name = "direct.post_video"),
-                    exchange = @Exchange(name = RabbitMQKeys.EXCHANGE_NAME, type = ExchangeTypes.DIRECT),
+                    exchange = @Exchange(name = RabbitMQKeys.POST_VIDEO_EXCHANGE, type = ExchangeTypes.DIRECT),
                     key = {RabbitMQKeys.VIDEO_POST}
             )
     )
     @Transactional
-    public void listenToPostVideo(Long authorId) {
-        log.info("监听到用户id为：{}", authorId);
-        LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
+    public void listenToPostVideo(@Payload Long authorId) {
+        log.info("监听到用户投稿操作的用户id为：{}", authorId);
         //查询得到用户原有信息
-        queryWrapper.eq(UserDO::getUserId, authorId);
-        UserDO userDO = userMapper.selectOne(queryWrapper);
+        UserDO userDO = userMapper.selectById(authorId);
         Integer workCount = userDO.getWorkCount();
 
         //更新用户作品信息

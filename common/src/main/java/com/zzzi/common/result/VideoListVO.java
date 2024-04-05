@@ -1,4 +1,4 @@
-package com.zzzi.videoservice.result;
+package com.zzzi.common.result;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

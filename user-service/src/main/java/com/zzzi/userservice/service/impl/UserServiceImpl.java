@@ -3,13 +3,10 @@ package com.zzzi.userservice.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
-import com.sun.corba.se.impl.oa.toa.TOA;
 import com.zzzi.common.constant.RedisDefaultValue;
 import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.exception.UserInfoException;
-import com.zzzi.common.utils.JwtUtils;
-import com.zzzi.common.utils.MD5Utils;
-import com.zzzi.common.utils.RandomUtils;
+import com.zzzi.common.utils.*;
 import com.zzzi.userservice.dto.UserDTO;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.common.exception.UserException;
@@ -17,14 +14,12 @@ import com.zzzi.userservice.mapper.UserMapper;
 import com.zzzi.common.result.UserVO;
 import com.zzzi.userservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
-import javax.security.auth.login.LoginException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -43,8 +38,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     @Autowired
     private StringRedisTemplate redisTemplate;
     @Autowired
-    private UserService userService;
-
+    private UpdateTokenUtils updateTokenUtils;
 
     /**
      * @author zzzi
@@ -55,13 +49,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     @Override
     @Transactional
     public UserDTO register(String username, String password) {
+        log.info("用户注册service,用户名为：{}，密码为：{}", username, password);
         //正则表达式验证邮箱合法性
         String pattern = "^[a-zA-Z0-9_.-]+@[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)*\\.[a-zA-Z0-9]{2,6}$";
         if (!Pattern.matches(pattern, username)) {
             throw new UserException("邮箱格式不正确！");
         }
-        // 数据库中存的是MD5加密以后的值
+
+        /**@author zzzi
+         * @date 2024/4/3 15:54
+         * 两种密码加密方式
+         */
+        //1. MD5加盐
         String pwdMD5 = MD5Utils.parseStrToMd5L32(password);
+
+        //2. BCrypt自适应算法，逐渐增加密码生成的迭代次数，使加密和解密时间变长
+        //BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(16);
+        //String pwdMD5 = encoder.encode(password);
 
         //尝试往数据库中插入数据，插入失败说明用户名被占用
         UserDO userDO = new UserDO();
@@ -97,18 +101,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      */
     @Override
     public UserDTO login(String username, String password) {
-        log.info("用户登录！！！！！！！");
+        log.info("用户登录service,用户名为：{}，密码为：{}", username, password);
         UserDO userDO = getUserDOByPasswordAndUserName(username, password);
         //没有该用户，用户名或密码错误
         if (userDO == null) {
-            throw new UserException("登录失败，请确认是否注册或者用户名和密码是否正确");
+            throw new UserException("登录失败，请确认用户是否注册或者用户名和密码是否正确");
         }
         //到这里就是用户存在，能获取到token就是用户已经登录
         Long userId = userDO.getUserId();
         String token = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + userId);
         //获取到了token，说明用户已经登录
         if (token != null) {
-            log.warn("注册生成的token为：{}", token);
+            log.warn("登录方法访问注册生成的token为：{}", token);
             throw new UserException("当前用户已经登录，请不要重复登录");
         }
         //没获取到token，说明用户已经很久没有登录了，注册时候创建的token失效了
@@ -131,14 +135,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      */
     @Override
     public UserVO getUserInfo(String user_id) {
-        log.info("待查询的用户id为：{}", user_id);
+        log.info("获取用户信息service，待查询的用户id为：{}", user_id);
 
         String userDOJson = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id);
         UserVO userVO = null;
         //缓存中获取到当前用户的信息
         if (userDOJson != null) {
             //打包需要的信息返回
-            userVO = userService.packageUserVO(userDOJson);
+            userVO = packageUserVO(userDOJson);
         } else {//缓存中没有
             try {
                 //双重检查
@@ -152,6 +156,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 if (!absent) {
                     //不停地调用自己
                     Thread.sleep(50);
+                    UserService userService = (UserService) AopContext.currentProxy();
                     userService.getUserInfo(user_id);
                 }
                 //再次尝试从缓存中获取
@@ -159,9 +164,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 //缓存中获取到当前用户的信息
                 if (userDOJson != null) {
                     //打包需要的信息返回
-                    userVO = userService.packageUserVO(userDOJson);
+                    userVO = packageUserVO(userDOJson);
                 } else {
-                    userVO = userService.rebuildUserInfoCache(user_id);
+                    userVO = rebuildUserInfoCache(user_id);
                 }
             } catch (Exception e) {
                 log.error(e.getMessage());
@@ -187,28 +192,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * @date 2024/3/31 13:08
      * 重建用户信息缓存
      */
-    @Override
     public UserVO rebuildUserInfoCache(String user_id) {
+        log.info("重建用户信息缓存service,user_id为：{}", user_id);
         LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(UserDO::getUserId, user_id);
+        queryWrapper.eq(UserDO::getUserId, Long.valueOf(user_id));
         UserDO userDO = userMapper.selectOne(queryWrapper);
+        String userDOJson = null;
         //数据库中也没有，此时缓存中需要保存默认值,并且需要抛出异常
         if (userDO == null) {
             redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + user_id, RedisDefaultValue.REDIS_DEFAULT_VALUE);
             //默认值5分钟过期
             redisTemplate.expire(RedisKeys.USER_INFO_PREFIX + user_id, 5, TimeUnit.MINUTES);
-            return userService.packageUserVO(RedisDefaultValue.REDIS_DEFAULT_VALUE);
+            userDOJson = RedisDefaultValue.REDIS_DEFAULT_VALUE;
+        } else {
+            //到这里就是查询到了真的数据
+            Gson gson = new Gson();
+            userDOJson = gson.toJson(userDO);
+            //重建缓存,先删除默认值，其实这里不用删，因为String会被覆盖
+            //redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id);
+            redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + user_id, userDOJson);
+            //更新用户token有效期
+            updateTokenUtils.updateTokenExpireTimeUtils(user_id);
         }
-        //到这里就是查询到了真的数据
-        Gson gson = new Gson();
-        String userDOJson = gson.toJson(userDO);
-        //重建缓存,先删除默认值
-        redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id);
-        redisTemplate.opsForValue().set(RedisKeys.USER_INFO_PREFIX + user_id, userDOJson);
-        //更新用户token有效期
-        Integer userTokenExpireTime = randomUtils.createRandomTime();
-        redisTemplate.expire(RedisKeys.USER_TOKEN_PREFIX + user_id, userTokenExpireTime, TimeUnit.MINUTES);
-        return userService.packageUserVO(userDOJson);
+        //最后打包
+        return packageUserVO(userDOJson);
     }
 
 
@@ -217,8 +224,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * @date 2024/3/31 12:46
      * 根据从缓存中获取到的用户信息封装前端需要的信息
      */
-    @Override
     public UserVO packageUserVO(String userDOJson) {
+        log.info("打包用户信息service");
         //防止缓存穿透的默认值
         if (RedisDefaultValue.REDIS_DEFAULT_VALUE.equals(userDOJson)) {
             return null;
@@ -239,7 +246,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         userVO.setWork_count(userDO.getWorkCount());
         userVO.setFavorite_count(userDO.getFavoriteCount());
         return userVO;
-
     }
 
 
@@ -249,7 +255,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * 根据用户名和用户密码查询用户
      */
     public UserDO getUserDOByPasswordAndUserName(String username, String password) {
-        //根据密码获取加密后的MD5值去数据库比对
+        log.info("根据用户名和密码获取用户实体service");
+        //根据密码使用MD5加盐或者BCrypt自适应算法计算出来的加密值去数据库比对
+
+        //，逐渐增加密码生成的迭代次数，使加密和解密时间变长
+        //BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(16);
+        //String pwdMD5 = encoder.encode(password);
         String pwdMD5 = MD5Utils.parseStrToMd5L32(password);
         LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
         //用户名和密码都相等才算登陆成功，才能查询到用户信息

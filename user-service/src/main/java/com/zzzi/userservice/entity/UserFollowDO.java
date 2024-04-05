@@ -22,5 +22,4 @@ public class UserFollowDO {
     private Long followerId;
     //被关注者是谁
     private Long followedId;
-
 }

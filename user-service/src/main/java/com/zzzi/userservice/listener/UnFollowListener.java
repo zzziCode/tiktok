@@ -7,7 +7,7 @@ import com.zzzi.userservice.entity.UserFollowDO;
 import com.zzzi.userservice.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
-import com.zzzi.userservice.utils.UpdateUserInfoUtils;
+import com.zzzi.common.utils.UpdateUserInfoUtils;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -16,7 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**@author zzzi
+/**
+ * @author zzzi
  * @date 2024/3/29 16:59
  * 这里执行取消关注的逻辑
  */
@@ -38,12 +39,13 @@ public class UnFollowListener {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(name = "direct.un_follow"),
-                    exchange = @Exchange(name = RabbitMQKeys.EXCHANGE_NAME, type = ExchangeTypes.DIRECT),
+                    exchange = @Exchange(name = RabbitMQKeys.FOLLOW_EXCHANGE, type = ExchangeTypes.DIRECT),
                     key = {RabbitMQKeys.UN_FOLLOW_KEY}
             )
     )
     @Transactional
     public void listenToUnFollow(String userUnFollowDOJson) {
+        log.info("监听到用户取消关注");
         //将接收到的实体转换成实体类
         Gson gson = new Gson();
         UserFollowDO userUnFollowDO = gson.fromJson(userUnFollowDOJson, UserFollowDO.class);
@@ -69,10 +71,10 @@ public class UnFollowListener {
         userMapper.updateById(unFollowed);
 
         //调用方法更新用户缓存
-        String followerJson = gson.toJson(unFollower);
-        String followedJson = gson.toJson(unFollowed);
+        String followerJson = gson.toJson(unFollower);//主动取消关注者
+        String followedJson = gson.toJson(unFollowed);//被动取消关注者
 
-        updateUserInfoUtils.updateUserInfoCache(unFollowerId,followerJson);
-        updateUserInfoUtils.updateUserInfoCache(unFollowedId,followedJson);
+        updateUserInfoUtils.updateUserInfoCache(unFollowerId, followerJson);
+        updateUserInfoUtils.updateUserInfoCache(unFollowedId, followedJson);
     }
 }

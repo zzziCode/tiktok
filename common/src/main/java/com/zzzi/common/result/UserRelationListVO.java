@@ -1,6 +1,5 @@
-package com.zzzi.userservice.result;
+package com.zzzi.common.result;
 
-import com.zzzi.common.result.UserVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

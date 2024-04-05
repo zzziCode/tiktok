@@ -10,11 +10,14 @@ public class RedisKeys {
     //按照视频发布时间降序存储视频的Zset的key
     public static final String VIDEO_FEED = "video_feed";
 
+    //缓存用户token的String的key的前缀
+    public static final String USER_TOKEN_PREFIX = "user_token:";
+
     //缓存用户信息的String的key的前缀
     public static final String USER_INFO_PREFIX = "user_info:";
 
-    //缓存用户token的String的key的前缀
-    public static final String USER_TOKEN_PREFIX = "user_token:";
+    //缓存视频信息的String的key的前缀
+    public static final String VIDEO_INFO_PREFIX = "video_info:";
 
 
     /**

@@ -22,7 +22,7 @@ spring:
     virtual-host: / # 虚拟主机
     listener:
       direct:
-        prefetch: 1
+        prefetch: 1 # 每个消费者每次只消费一条消息，不会出现高消费的情况，也就是承担不了那么多消息
   cloud:
     # nacos相关地址
     nacos:
@@ -60,6 +60,10 @@ cover_save_path: "G:/Java/tiktok/resource/static/cover/"
 video_feed_max_size: 5000
 # 用户作品缓存的最大数量，防止出现大key
 user_works_max_size: 1000
+# 视频评论缓存的最大数量，防止大key
+video_comment_max_size: 5000
+# 每次推荐视频的数量
+feed_size: 30
 
 mybatis-plus:
   configuration:
@@ -77,6 +81,10 @@ logging:
 feign:
   hystrix:
     enabled: true
+  httpclient:
+    enabled: true # 支持HttpClient的开关
+    max-connections: 200 # 最大连接数
+    max-connections-per-route: 50 # 单个路径的最大连接数
 hystrix:
   command:
     default:
@@ -84,14 +92,15 @@ hystrix:
         isolation:
           thread:
             timeoutInMilliseconds: 15000
-ribbon:
-  ConnectTimeout: 5000
-  ReadTimeout: 5000
-  eager-load:
-    enabled: true # 开启饥饿加载
-    clients: # 指定饥饿加载的服务名称
-      - userservice
-# 负载均衡规则
-videoservice:
-  ribbon:
-    NFLoadBalancerRuleClassName: com.alibaba.cloud.nacos.ribbon.NacosRule  # 负载均衡规则
+ribbon.nacos.enabled: true
+#ribbon:
+#  ConnectTimeout: 5000
+#  ReadTimeout: 5000
+#  eager-load:
+#    enabled: true # 开启饥饿加载
+#    clients: # 指定饥饿加载的服务名称
+#      - userservice
+## 负载均衡规则
+#userservice:
+#  ribbon:
+#    NFLoadBalancerRuleClassName: com.alibaba.cloud.nacos.ribbon.NacosRule  # 负载均衡规则

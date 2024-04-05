@@ -30,7 +30,6 @@ public class RandomUtils {
      * 使用ThreadLocalRandom是为了防止多线程下由于竞争导致的效率问题
      */
     public Integer createRandomTime() {
-        log.info("生成随机的缓存过期时间为：{}");
         if (start == end) {
             int time = ThreadLocalRandom.current().nextInt(start, end + 31);
             log.info("生成随机的缓存过期时间为：{}", time);

@@ -25,9 +25,6 @@ import javax.servlet.http.HttpServletResponse;
 @Component
 @Slf4j
 public class LoginUserInterceptor implements HandlerInterceptor {
-    @Autowired
-    private StringRedisTemplate redisTemplate;
-
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 放行无需登录的请求
@@ -35,7 +32,7 @@ public class LoginUserInterceptor implements HandlerInterceptor {
         AntPathMatcher antPathMatcher = new AntPathMatcher();// 匹配器
         boolean register = antPathMatcher.match("/douyin/user/register/**", uri);// 注册
         boolean login = antPathMatcher.match("/douyin/user/login/**", uri);// 登录
-        log.info("登录拦截请求：" + uri);
+        log.info("拦截请求：" + uri);
         //放行无需登录的请求
         if (register || login) {
             return true;

@@ -21,53 +21,17 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void insertFill(MetaObject metaObject) {
         try {
-            Object createTime = metaObject.getValue("createTime");
-            if (createTime == null) {
-                this.setFieldValByName("createTime", new Date(), metaObject);
-            }
+            this.strictInsertFill(metaObject, "createTime", Date.class, new Date());
             //更新时间不管什么时候都自动更新
-            this.setFieldValByName("updateTime", new Date(), metaObject);
-            Object followCount = metaObject.getValue("followCount");
-            if (followCount == null) {
-                this.setFieldValByName("followCount", 0, metaObject);
-            }
-
-            Object followerCount = metaObject.getValue("followerCount");
-            if (followerCount == null) {
-                this.setFieldValByName("followerCount", 0, metaObject);
-            }
-            Object avatar = metaObject.getValue("avatar");
-            if (avatar == null) {
-                this.setFieldValByName("avatar",
-                        "https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg",
-                        metaObject);
-            }
-            Object backgroundImage = metaObject.getValue("backgroundImage");
-            if (backgroundImage == null) {
-                this.setFieldValByName("backgroundImage",
-                        "https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg",
-                        metaObject);
-            }
-
-            Object signature = metaObject.getValue("signature");
-            if (signature == null) {
-                this.setFieldValByName("signature", "谢谢你的关注", metaObject);
-            }
-
-            Object totalFavorited = metaObject.getValue("totalFavorited");
-            if (totalFavorited == null) {
-                this.setFieldValByName("totalFavorited", 0L, metaObject);
-            }
-
-            Object workCount = metaObject.getValue("workCount");
-            if (workCount == null) {
-                this.setFieldValByName("workCount", 0, metaObject);
-            }
-
-            Object favoriteCount = metaObject.getValue("favoriteCount");
-            if (favoriteCount == null) {
-                this.setFieldValByName("favoriteCount", 0, metaObject);
-            }
+            this.strictInsertFill(metaObject, "updateTime", Date.class, new Date());
+            this.strictInsertFill(metaObject, "followCount", Integer.class, 0);
+            this.strictInsertFill(metaObject, "followerCount", Integer.class, 0);
+            this.strictInsertFill(metaObject, "avatar", String.class, "https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg");
+            this.strictInsertFill(metaObject, "backgroundImage", String.class, "https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg");
+            this.strictInsertFill(metaObject, "signature", String.class, "谢谢你的关注");
+            this.strictInsertFill(metaObject, "totalFavorited", Long.class, 0L);
+            this.strictInsertFill(metaObject, "workCount", Integer.class, 0);
+            this.strictInsertFill(metaObject, "favoriteCount", Integer.class, 0);
         } catch (Exception e) {
             log.error(e.getMessage());
             throw new UserException("属性自动填充失败");
@@ -78,7 +42,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     public void updateFill(MetaObject metaObject) {
         try {
             //更新时间不管如何都直接填充
-            this.setFieldValByName("updateTime", new Date(), metaObject);
+            this.strictUpdateFill(metaObject, "updateTime", Date.class, new Date());
         } catch (Exception e) {
             log.error(e.getMessage());
             throw new UserException("属性自动填充失败");

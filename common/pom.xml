@@ -16,6 +16,12 @@
     <description>极简版抖音通用模块</description>
 
     <dependencies>
+        <!--redis的起步依赖-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!--nacos客户端依赖包-->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
