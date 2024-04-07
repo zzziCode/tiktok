@@ -1,6 +1,7 @@
 package com.zzzi.userservice.controller;
 
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zzzi.common.result.UserInfoVO;
 import com.zzzi.userservice.dto.UserDTO;
 import com.zzzi.common.result.UserRegisterLoginVO;
@@ -54,6 +55,7 @@ public class UserController {
      * 获取当前登录用户全部信息
      * 这个也可以用来做远程调用
      */
+    @SentinelResource("userInfo")
     @GetMapping
     public UserInfoVO userInfo(String user_id, @RequestParam(required = false) String token) {
         log.info("获取用户信息的用户id为：{}，用户token为：{}", user_id, token);
