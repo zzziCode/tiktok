@@ -1,5 +1,6 @@
 package com.zzzi.videoservice.controller;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.VideoFeedListVO;
 import com.zzzi.common.result.VideoListVO;
@@ -27,6 +28,7 @@ public class VideoController {
      * 由于作品信息更新时会删除缓存，所以可能需要缓存重构
      * 并且作品列表涉及到获取用户信息，所以需要远程调用
      */
+    @SentinelResource("userWorks")
     @GetMapping("/publish/list")
     public VideoListVO getPublishList(String token, Long user_id) {
         log.info("获取用户投稿列表,token为：{}，user_id为：{}", token, user_id);
