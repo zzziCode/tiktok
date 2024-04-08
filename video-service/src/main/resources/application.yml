@@ -125,13 +125,7 @@ server:
 # 缓存过期值随机打散(30分钟到60分钟)
 random_start: 30
 random_end: 30
-# 腾讯云上传文件的配置
-tencent:
-  cos:
-    secretId: AKIDIg8bJ2lRCzHbbbdaYYaZmrrkbKvRp387
-    secretKey: EVhox1Dc1VtEkO8vcNH4CKNLD554IUeh
-    bucketName: zzzi-img-1313100942
-    region: ap-beijing
+
 # 视频和封面的本地保存地址
 video_save_path: "G:/Java/tiktok/resource/static/video/"
 cover_save_path: "G:/Java/tiktok/resource/static/cover/"
