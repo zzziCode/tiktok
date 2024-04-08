@@ -69,6 +69,19 @@
             <version>3.8.1</version>
             <scope>test</scope>
         </dependency>
+
+        <!--sentinel依赖-->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+
+        <!--sentinel监听nacos-->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-datasource-nacos</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

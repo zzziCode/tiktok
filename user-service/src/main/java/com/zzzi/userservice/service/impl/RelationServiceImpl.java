@@ -306,7 +306,7 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         List<UserVO> friends = new ArrayList<>();
         //看用户关注的人是否是自己的粉丝，互关才能成为朋友
         for (UserVO follow : followList) {
-            if (followerList.contains(follow)) {
+            if (followerList != null && followerList.contains(follow)) {
                 //互关了，也就是我关注了这个粉丝，此时is_follow一定为true
                 follow.setIs_follow(true);
                 friends.add(follow);

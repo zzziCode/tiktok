@@ -126,6 +126,10 @@
             <groupId>com.gitee.Jmysy</groupId>
             <artifactId>binlog4j-spring-boot-starter</artifactId>
             <version>1.9.0</version>
+        <!--sentinel依赖-->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
         </dependency>
     </dependencies>
 

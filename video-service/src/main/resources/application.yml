@@ -32,10 +32,6 @@ spring:
         show: true
     # 配置默认数据源master 默认数据源,主要用于写
     sharding:
-      default-database-strategy:
-        inline:
-          sharding-column: user_id
-          algorithm-expression: master$->{user_id % 1}
       # 配置分表策略
       tables:
         comment:
