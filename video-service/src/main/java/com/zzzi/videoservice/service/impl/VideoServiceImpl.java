@@ -124,17 +124,18 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * @date 2024/3/30 14:23
              *用户作品超过指定就从缓存中删除之前投搞的作品
              * 因为用户主页经常访问的也就是前多少个视频
+             * todo:尝试将用户作品缓存新增交给binlog
              */
             //如果用户作品列表中有默认值，此时先删除默认值再添加
-            List<String> userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + authorId, 0, -1);
-            if (userWorkList.contains(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
-                redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + authorId);
-            }
-            redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + authorId, videoId + "");
-            while (redisTemplate.opsForList().size(RedisKeys.USER_WORKS_PREFIX + authorId) > USER_WORKS_MAX_SIZE) {
-                //从右边删除，代表删除最早投稿的视频
-                redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + authorId);
-            }
+            //List<String> userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + authorId, 0, -1);
+            //if (userWorkList.contains(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
+            //    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + authorId);
+            //}
+            //redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + authorId, videoId + "");
+            //while (redisTemplate.opsForList().size(RedisKeys.USER_WORKS_PREFIX + authorId) > USER_WORKS_MAX_SIZE) {
+            //    //从右边删除，代表删除最早投稿的视频
+            //    redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + authorId);
+            //}
             //4. 视频信息缓存新增
             redisTemplate.opsForValue().set(RedisKeys.VIDEO_INFO_PREFIX + videoId, videoDOJson);
             /**@author zzzi

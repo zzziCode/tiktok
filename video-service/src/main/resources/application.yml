@@ -74,6 +74,18 @@ spring:
           slave-data-source-names: slaver0
   application:
     name: videoservice
+  # 监听mysql中binlog变化的配置
+  binlog4j:
+    redis-config:
+      host: 127.0.0.1
+      port: 6379
+    client-configs:
+      master:
+        username: root
+        password: 123456
+        host: 106.75.247.170
+        port: 3306
+        serverId: 1
   mvc:
     static-path-pattern:server: /**
   # 最大文件大小
@@ -116,8 +128,8 @@ random_end: 30
 # 腾讯云上传文件的配置
 tencent:
   cos:
-    secretId: AKID496vaHqKgv21PcgdP0ty7LVeqDd5YvGa
-    secretKey: VvJjAc4RmBf7Z7kJrP0gT5hATaAezBGH
+    secretId: AKIDIg8bJ2lRCzHbbbdaYYaZmrrkbKvRp387
+    secretKey: EVhox1Dc1VtEkO8vcNH4CKNLD554IUeh
     bucketName: zzzi-img-1313100942
     region: ap-beijing
 # 视频和封面的本地保存地址
