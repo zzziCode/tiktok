@@ -1,4 +1,8 @@
-## 🧭极简版抖音使用指南
+<h2 align="center" style="color:#009688;font-weight: 800">极简版抖音指南🧭</h2>
+
+<p align="center">
+	<strong>微服务版、Java实现</strong>
+</p>
 
 ### ⛳⛳前言
 
