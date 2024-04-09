@@ -36,7 +36,7 @@
 
 项目中涉及到的交换机和队列以及对应的`RoutingKey`如下图所示:
 
-<img src="./resource/img/RabbitMq.jpg" alt="framework" style="zoom:80%;" />
+<img src="./resource/img/RabbitMQ.jpg" alt="framework" style="zoom:80%;" />
 
 > 需要注意的是，项目中专门定义了一个交换机和队列来接收超过重试次数的消息**集中**进行处理
 
@@ -93,7 +93,7 @@ tiktok:.
 
 ### :runner::runner:项目运行
 
-下载本项目后，需要在各个微服务模块将每个中间件对应的**地址**替换成自己需要的，然后加上腾讯云cos需要的配置项，例如：
+下载本项目后，需要在各个微服务模块的`application.txt`的后缀名换成`.yml`，之后将每个中间件对应的**地址**替换成自己需要的，然后加上腾讯云cos需要的配置项，例如：
 
 ```yml
 # 腾讯云上传文件的配置
