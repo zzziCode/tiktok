@@ -28,6 +28,7 @@ public class LoginUserInterceptor implements HandlerInterceptor {
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+    //除了视频推流，其余的请求都要带上token，否则拦截
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 放行无需登录的请求
@@ -37,6 +38,7 @@ public class LoginUserInterceptor implements HandlerInterceptor {
         log.info("登录拦截请求：" + uri);
         //放行无需登录的请求
         if (feed) {
+            log.info("视频推流请求无需拦截");
             return true;
         }
 
@@ -46,7 +48,12 @@ public class LoginUserInterceptor implements HandlerInterceptor {
          * 直接根据缓存中是否存在用户的token来判断
          * 为了调试方便，先全部放行
          */
-        //String token = request.getParameter("token");
+        String token = request.getParameter("token");
+        //log.info("拦截到的请求中，token为：{}", token);
+        ////截取得到真正的token
+        //if (token != null && !"".equals(token)) {
+        //    token = token.substring(12);
+        //}
         ////没有抛异常的话就是验签成功
         //Long userId = JwtUtils.getUserIdByToken(token);
         //String userToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + userId);

@@ -8,7 +8,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 /**@author zzzi
  * @date 2024/3/29 14:06
- * 配置跨域
+ * 配置跨域，这种是全局跨域，只需要返回一个新的CorsWebFilter的bean即可
  */
 @Configuration
 public class CorsConfig {

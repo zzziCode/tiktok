@@ -13,6 +13,13 @@ public class RabbitMQKeys {
     public static final String POST_VIDEO_EXCHANGE = "tiktok.post_video";
     public static final String FOLLOW_EXCHANGE = "tiktok.follow";
     public static final String COMMENT_EXCHANGE = "tiktok.comment";
+    public static final String ERROR_EXCHANGE = "error.direct";
+
+
+    /**
+     * MQ中关于消费失败的key
+     */
+    public static final String ERROR = "error";
 
     /**
      * MQ中关于点赞的queue

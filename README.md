@@ -6,7 +6,7 @@
 
 ### ⛳⛳前言
 
-本仓库是字节青训营的大作业项目，开发文档参考《[在线接口文档分享](https://apifox.com/apidoc/shared-7b33652d-6080-41bb-a70e-7a165d55daae)》以及字节官方提供的《[极简版抖音App使用说明-青训营版](https://bytedance.larkoffice.com/docs/doccnM9KkBAdyDhg8qaeGlIz7S7)》
+本仓库是字节青训营的官方项目，开发文档参考《[在线接口文档分享](https://apifox.com/apidoc/shared-7b33652d-6080-41bb-a70e-7a165d55daae)》以及字节官方提供的《[极简版抖音App使用说明-青训营版](https://bytedance.larkoffice.com/docs/doccnM9KkBAdyDhg8qaeGlIz7S7)》
 
 ### :sun_with_face::sun_with_face:项目特点
 
@@ -31,6 +31,14 @@
 <img src="./resource/img/framework.jpg" alt="framework" style="zoom:80%;" />
 
 > 需要部署的项目中间件全部使用docker部署到了服务器中
+
+### :rabbit::rabbit:RabbitMQ设计
+
+项目中涉及到的交换机和队列以及对应的`RoutingKey`如下图所示:
+
+<img src="./resource/img/RabbitMq.jpg" alt="framework" style="zoom:80%;" />
+
+> 需要注意的是，项目中专门定义了一个交换机和队列来接收超过重试次数的消息**集中**进行处理
 
 ### :bug::bug:代码结构
 

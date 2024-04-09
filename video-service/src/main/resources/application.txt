@@ -12,18 +12,18 @@ spring:
         maxPoolSize: 100
         minPoolSize: 5
         username: root
-        password: anP6w8Ks
+        password: 123456
         type: com.alibaba.druid.pool.DruidDataSource
-        url: jdbc:mysql://106.75.247.170:3306/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
+        url: jdbc:mysql://localhost:3306/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       # slaver数据库连接信息
       slaver0:
         driver-class-name: com.mysql.jdbc.Driver
         maxPoolSize: 100
         minPoolSize: 5
         username: root
-        password: anP6w8Ks
+        password: 123456
         type: com.alibaba.druid.pool.DruidDataSource
-        url: jdbc:mysql://106.75.247.170:3307/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
+        url: jdbc:mysql://localhost:3307/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       # 配置数据源
       names: master0,slaver0
     # 显示sql
@@ -82,8 +82,8 @@ spring:
     client-configs:
       master:
         username: root
-        password: anP6w8Ks
-        host: 106.75.247.170
+        password: 123456
+        host: localhost
         port: 3306
         serverId: 1
   mvc:
@@ -99,7 +99,7 @@ spring:
     publisher-returns: true
     template:
       mandatory: true
-    host: 106.75.247.170
+    host: localhost
     port: 5672
     username: root
     password: 123456
@@ -124,7 +124,7 @@ spring:
   cloud:
     # nacos相关地址
     nacos:
-      server-addr: 106.75.247.170:8848
+      server-addr: localhost:8848
   redis:
     host: localhost
     port: 6379

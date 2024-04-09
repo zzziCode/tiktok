@@ -16,6 +16,7 @@ import com.zzzi.userservice.mapper.RelationMapper;
 import com.zzzi.userservice.service.RelationService;
 import com.zzzi.userservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +24,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -89,14 +87,34 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         redisTemplate.delete(RedisKeys.USER_FOLLOWERS_PREFIX + to_user_id);
 
         //异步更新两个用户的关注数和粉丝数
-        //将当前用户和取消关注的用户id封装起来发送过去
+        //1. 将当前用户和取消关注的用户id封装起来发送过去
         Gson gson = new Gson();
         UserFollowDO userFollowDO = new UserFollowDO();
         userFollowDO.setFollowerId(followerId);
         userFollowDO.setFollowedId(to_user_id);
         String userFollowDOJson = gson.toJson(userFollowDO);
 
-        rabbitTemplate.convertAndSend(RabbitMQKeys.FOLLOW_EXCHANGE, RabbitMQKeys.UN_FOLLOW_KEY, userFollowDOJson);
+        // 2.全局唯一的消息ID，需要封装到CorrelationData中
+        CorrelationData correlationData = new CorrelationData(UUID.randomUUID().toString());
+        // 3.添加callback
+        //根据返回的是ack还是nack判断消息是否到达交换机
+        correlationData.getFuture().addCallback(
+                //消息发送成功（不一定到交换机），此时执行下面的判断逻辑
+                result -> {
+                    if (result.isAck()) {
+                        // 3.1.ack，消息成功
+                        log.debug("消息发送成功, ID:{}", correlationData.getId());
+                    } else {//这里可以抛出一个异常，相应的事务就会回滚
+                        // 3.2.nack，消息失败
+                        log.error("消息发送失败, ID:{}, 原因{}", correlationData.getId(), result.getReason());
+                        throw new FollowException("取消关注失败");
+                    }
+                },
+                //消息发送失败执行的逻辑
+                ex -> log.error("消息发送异常, ID:{}, 原因{}", correlationData.getId(), ex.getMessage())
+        );
+
+        rabbitTemplate.convertAndSend(RabbitMQKeys.FOLLOW_EXCHANGE, RabbitMQKeys.UN_FOLLOW_KEY, userFollowDOJson, correlationData);
     }
 
     /**
@@ -163,7 +181,27 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         //1. 将当前关注记录转换成json进行传递
         Gson gson = new Gson();
         String userFollowDOJson = gson.toJson(userFollowDO);
-        rabbitTemplate.convertAndSend(RabbitMQKeys.FOLLOW_EXCHANGE, RabbitMQKeys.FOLLOW_KEY, userFollowDOJson);
+
+        // 2.全局唯一的消息ID，需要封装到CorrelationData中
+        CorrelationData correlationData = new CorrelationData(UUID.randomUUID().toString());
+        // 3.添加callback
+        //根据返回的是ack还是nack判断消息是否到达交换机
+        correlationData.getFuture().addCallback(
+                //消息发送成功（不一定到交换机），此时执行下面的判断逻辑
+                result -> {
+                    if (result.isAck()) {
+                        // 3.1.ack，消息成功
+                        log.debug("消息发送成功, ID:{}", correlationData.getId());
+                    } else {//这里可以抛出一个异常，相应的事务就会回滚
+                        // 3.2.nack，消息失败
+                        log.error("消息发送失败, ID:{}, 原因{}", correlationData.getId(), result.getReason());
+                        throw new FollowException("用户关注失败");
+                    }
+                },
+                //消息发送失败执行的逻辑
+                ex -> log.error("消息发送异常, ID:{}, 原因{}", correlationData.getId(), ex.getMessage())
+        );
+        rabbitTemplate.convertAndSend(RabbitMQKeys.FOLLOW_EXCHANGE, RabbitMQKeys.FOLLOW_KEY, userFollowDOJson, correlationData);
     }
 
 

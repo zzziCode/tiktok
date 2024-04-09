@@ -25,6 +25,10 @@ import javax.servlet.http.HttpServletResponse;
 @Component
 @Slf4j
 public class LoginUserInterceptor implements HandlerInterceptor {
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    //除了登录注册，其余的请求都需要带上token，没带就拦截
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 放行无需登录的请求
@@ -35,6 +39,7 @@ public class LoginUserInterceptor implements HandlerInterceptor {
         log.info("拦截请求：" + uri);
         //放行无需登录的请求
         if (register || login) {
+            log.info("注册或登录请求无需拦截");
             return true;
         }
 
@@ -42,9 +47,13 @@ public class LoginUserInterceptor implements HandlerInterceptor {
         /**@author zzzi
          * @date 2024/3/29 14:53
          * 直接根据缓存中是否存在用户的token来判断
-         * todo: 为了调试方便，先全部放行
          */
         //String token = request.getParameter("token");
+        //log.info("拦截到的请求中，token为：{}", token);
+        ////截取得到真正的token
+        //if (token != null && !"".equals(token)) {
+        //    token = token.substring(12);
+        //}
         ////没有抛异常的话就是验签成功
         //Long userId = JwtUtils.getUserIdByToken(token);
         //String userToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + userId);

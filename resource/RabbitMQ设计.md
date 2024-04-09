@@ -2,7 +2,7 @@
 
 > 在这里设计RabbitMQ需要接收哪些消息，交换机和队列的名称是什么
 
-![image-20240407145837133](https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/img/202404071458593.png)
+![RabbitMQ](./img/RabbitMQ.jpg)
 
 ### Direct模式
 
@@ -34,24 +34,28 @@ public class RabbitMQKeys {
     public static final String POST_VIDEO_EXCHANGE = "tiktok.post_video";
     public static final String FOLLOW_EXCHANGE = "tiktok.follow";
     public static final String COMMENT_EXCHANGE = "tiktok.comment";
+    public static final String ERROR_EXCHANGE = "error.direct";
+
+
+    /**
+     * MQ中关于消费失败的key
+     */
+    public static final String ERROR = "error";
 
     /**
      * MQ中关于点赞的queue
      * 点赞和取消点赞需要分开
      * 并且点赞针对用户和视频的key也需要分开
-     WorkQueue模式
      */
     public static final String FAVORITE_USER = "work.favorite_user";
     public static final String UN_FAVORITE_USER = "work.un_favorite_user";
     public static final String FAVORITE_VIDEO = "work.favorite_video";
     public static final String UN_FAVORITE_VIDEO = "work.un_favorite_video";
-    
     /**
      * MQ中关于评论的key
      */
     public static final String COMMENT_KEY = "comment";
     public static final String UN_COMMENT_KEY = "un_comment";
-   
     /**
      * MQ中关于关注的key
      * 关注和取消关注需要分开

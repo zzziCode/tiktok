@@ -1,5 +1,6 @@
 package com.zzzi.videoservice.controller;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.VideoListVO;
 import com.zzzi.common.result.VideoVO;
@@ -52,6 +53,7 @@ public class FavoriteController {
      * @date 2024/4/2 12:50
      * 获取用户喜欢列表
      */
+    @SentinelResource("userFavorites")
     @GetMapping("/list")
     public VideoListVO getFavoriteList(String user_id, String token) {
         log.info("获取用户点赞列表,user_id为：{}，token为：{}", user_id, token);

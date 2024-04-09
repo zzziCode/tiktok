@@ -12,18 +12,18 @@ spring:
         maxPoolSize: 100
         minPoolSize: 5
         username: root
-        password: anP6w8Ks
+        password: 123456
         type: com.alibaba.druid.pool.DruidDataSource
-        url: jdbc:mysql://106.75.247.170:3306/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
+        url: jdbc:mysql://localhost:3306/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       # slaver数据库连接信息
       slaver0:
         driver-class-name: com.mysql.jdbc.Driver
         maxPoolSize: 100
         minPoolSize: 5
         username: root
-        password: anP6w8Ks
+        password: 123456
         type: com.alibaba.druid.pool.DruidDataSource
-        url: jdbc:mysql://106.75.247.170:3307/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
+        url: jdbc:mysql://localhost:3307/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       # 配置数据源
       names: master0,slaver0
     # 显示sql
@@ -73,33 +73,20 @@ spring:
           master-data-source-name: master0
           slave-data-source-names: slaver0
   application:
-    name: videoservice
-  # 监听mysql中binlog变化的配置
-  binlog4j:
-    redis-config:
-      host: 127.0.0.1
-      port: 6379
-    client-configs:
-      master:
-        username: root
-        password: anP6w8Ks
-        host: 106.75.247.170
-        port: 3306
-        serverId: 1
+    name: userservice
   mvc:
     static-path-pattern:server: /**
-  # 最大文件大小
-  servlet:
-    multipart:
-      max-file-size: 100MB
-      max-request-size: 100MB
+  cloud:
+    # nacos相关地址
+    nacos:
+      server-addr: localhost:8848
   rabbitmq:
     # 生产者确认类型
     publisher-confirm-type: correlated
     publisher-returns: true
     template:
       mandatory: true
-    host: 106.75.247.170
+    host: localhost
     port: 5672
     username: root
     password: 123456
@@ -121,10 +108,11 @@ spring:
           max-attempts: 3
           # true无状态；false有状态。如果业务中包含事务，这里改为false
           stateless: false
-  cloud:
-    # nacos相关地址
-    nacos:
-      server-addr: 106.75.247.170:8848
+  # 最大文件大小
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
   redis:
     host: localhost
     port: 6379
@@ -139,23 +127,10 @@ spring:
       min-idle: 0 # 连接池中最小空闲连接数
       timeout: 200 # 连接超时时间
 server:
-  port: 9190
-
+  port: 9191
 # 缓存过期值随机打散(30分钟到60分钟)
 random_start: 30
-random_end: 30
-
-# 视频和封面的本地保存地址
-video_save_path: "G:/Java/tiktok/resource/static/video/"
-cover_save_path: "G:/Java/tiktok/resource/static/cover/"
-# 推荐视频缓存的最大数量，防止出现大key
-video_feed_max_size: 5000
-# 用户作品缓存的最大数量，防止出现大key
-user_works_max_size: 1000
-# 视频评论缓存的最大数量，防止大key
-video_comment_max_size: 5000
-# 每次推荐视频的数量
-feed_size: 30
+random_end: 60
 
 mybatis-plus:
   configuration:
@@ -169,19 +144,10 @@ logging:
     com.zzzi: debug
   pattern:
     dateformat: MM-dd HH:mm:ss:SSS
-# 防止远程调用超时
 feign:
-  hystrix:
-    enabled: true
   httpclient:
     enabled: true # 支持HttpClient的开关
     max-connections: 200 # 最大连接数
     max-connections-per-route: 50 # 单个路径的最大连接数
-hystrix:
-  command:
-    default:
-      execution:
-        isolation:
-          thread:
-            timeoutInMilliseconds: 15000
+# 防止远程调用出错
 ribbon.nacos.enabled: true
