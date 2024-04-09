@@ -12,7 +12,7 @@ spring:
         maxPoolSize: 100
         minPoolSize: 5
         username: root
-        password: 123456
+        password: anP6w8Ks
         type: com.alibaba.druid.pool.DruidDataSource
         url: jdbc:mysql://106.75.247.170:3306/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       # slaver数据库连接信息
@@ -21,7 +21,7 @@ spring:
         maxPoolSize: 100
         minPoolSize: 5
         username: root
-        password: 123456
+        password: anP6w8Ks
         type: com.alibaba.druid.pool.DruidDataSource
         url: jdbc:mysql://106.75.247.170:3307/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
       # 配置数据源
@@ -74,6 +74,18 @@ spring:
           slave-data-source-names: slaver0
   application:
     name: videoservice
+  # 监听mysql中binlog变化的配置
+  binlog4j:
+    redis-config:
+      host: 127.0.0.1
+      port: 6379
+    client-configs:
+      master:
+        username: root
+        password: anP6w8Ks
+        host: 106.75.247.170
+        port: 3306
+        serverId: 1
   mvc:
     static-path-pattern:server: /**
   # 最大文件大小
@@ -82,6 +94,11 @@ spring:
       max-file-size: 100MB
       max-request-size: 100MB
   rabbitmq:
+    # 生产者确认类型
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     host: 106.75.247.170
     port: 5672
     username: root
@@ -90,6 +107,20 @@ spring:
     listener:
       direct:
         prefetch: 1 # 每个消费者每次只消费一条消息，不会出现高消费的情况，也就是承担不了那么多消息
+      simple:
+        # 消费者消息确认机制
+        acknowledge-mode: auto
+        retry:
+          # 开启消费者失败重试
+          enabled: true
+          # 初始的失败等待时长为1秒
+          initial-interval: 1000
+          # 失败的等待时长倍数，下次等待时长 = multiplier * last-interval
+          multiplier: 1
+          # 最大重试次数
+          max-attempts: 3
+          # true无状态；false有状态。如果业务中包含事务，这里改为false
+          stateless: false
   cloud:
     # nacos相关地址
     nacos:
@@ -113,13 +144,7 @@ server:
 # 缓存过期值随机打散(30分钟到60分钟)
 random_start: 30
 random_end: 30
-# 腾讯云上传文件的配置
-tencent:
-  cos:
-    secretId: AKID496vaHqKgv21PcgdP0ty7LVeqDd5YvGa
-    secretKey: VvJjAc4RmBf7Z7kJrP0gT5hATaAezBGH
-    bucketName: zzzi-img-1313100942
-    region: ap-beijing
+
 # 视频和封面的本地保存地址
 video_save_path: "G:/Java/tiktok/resource/static/video/"
 cover_save_path: "G:/Java/tiktok/resource/static/cover/"

@@ -36,6 +36,11 @@ public class UploadUtils {
             // 生成唯一文件名，当前时间 +UUID+ 文件类型
             //指定文件保存的路径为存储桶下面的tiktok/文件夹下
             String choice = suffix.equals("_cover.jpg") ? "cover/" : "video/";
+            /**@author zzzi
+             * @date 2024/4/9 13:38
+             * 这个文件名直接决定了文件上传到对应的桶中的文件名
+             * 自己确定文件名，然后调用腾讯云cos接口，之后自己拼接文件的访问路径
+             */
             String fileName = "tiktok/" + choice + LocalDateTime.now() + UUID.randomUUID() + suffix;
 
             // 上传文件到cos,上传的核心步骤

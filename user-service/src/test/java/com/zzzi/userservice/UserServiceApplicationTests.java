@@ -53,4 +53,6 @@ class UserServiceApplicationTests {
         String passMD5 = MD5Utils.parseStrToMd5L32("123456");
         System.out.println(passMD5);
     }
+
+
 }

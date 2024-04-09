@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  * @author zzzi
  * @date 2024/4/2 18:17
  * Get请求必须添加@RequestParam，否则会报错Method has too many Body parameters
+ * 因为远程调用无法保证在每个地方调用传递的参数名都能匹配上
  * 因为识别不到远程调用传递来的参数
  */
 @FeignClient(value = "userservice", fallbackFactory = UserClientFallbackFactory.class)

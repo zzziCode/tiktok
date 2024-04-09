@@ -26,7 +26,7 @@ public class UnExpectedExitHandler implements DisposableBean {
      * 系统崩溃时删除所有用户token，防止token没过期下次登录不上
      */
     @Override
-    public void destroy() throws Exception {
+    public void destroy() {
         boolean state = false;
         Set<String> keys = redisTemplate.keys("*");
         for (String key : keys) {

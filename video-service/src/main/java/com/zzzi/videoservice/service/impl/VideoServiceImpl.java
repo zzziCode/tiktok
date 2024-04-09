@@ -8,6 +8,7 @@ import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
 import com.zzzi.common.constant.RedisDefaultValue;
 import com.zzzi.common.constant.RedisKeys;
+import com.zzzi.common.exception.FollowException;
 import com.zzzi.common.exception.VideoException;
 import com.zzzi.common.exception.VideoListException;
 import com.zzzi.common.feign.UserClient;
@@ -20,6 +21,7 @@ import com.zzzi.common.result.VideoVO;
 import com.zzzi.videoservice.service.FavoriteService;
 import com.zzzi.videoservice.service.VideoService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -126,15 +128,15 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * 因为用户主页经常访问的也就是前多少个视频
              */
             //如果用户作品列表中有默认值，此时先删除默认值再添加
-            List<String> userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + authorId, 0, -1);
-            if (userWorkList.contains(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
-                redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + authorId);
-            }
-            redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + authorId, videoId + "");
-            while (redisTemplate.opsForList().size(RedisKeys.USER_WORKS_PREFIX + authorId) > USER_WORKS_MAX_SIZE) {
-                //从右边删除，代表删除最早投稿的视频
-                redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + authorId);
-            }
+            //List<String> userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + authorId, 0, -1);
+            //if (userWorkList.contains(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
+            //    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + authorId);
+            //}
+            //redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + authorId, videoId + "");
+            //while (redisTemplate.opsForList().size(RedisKeys.USER_WORKS_PREFIX + authorId) > USER_WORKS_MAX_SIZE) {
+            //    //从右边删除，代表删除最早投稿的视频
+            //    redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + authorId);
+            //}
             //4. 视频信息缓存新增
             redisTemplate.opsForValue().set(RedisKeys.VIDEO_INFO_PREFIX + videoId, videoDOJson);
             /**@author zzzi
@@ -143,7 +145,27 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * 并且更新用户的基本信息
              */
             //5. 异步更新用户表中的作品数和缓存中的用户信息
-            rabbitTemplate.convertAndSend(RabbitMQKeys.POST_VIDEO_EXCHANGE, RabbitMQKeys.VIDEO_POST, authorId);
+
+            // 5.1.全局唯一的消息ID，需要封装到CorrelationData中
+            CorrelationData correlationData = new CorrelationData(UUID.randomUUID().toString());
+            // 5.2.添加callback
+            //根据返回的是ack还是nack判断消息是否到达交换机
+            correlationData.getFuture().addCallback(
+                    //消息发送成功（不一定到交换机），此时执行下面的判断逻辑
+                    result -> {
+                        if (result.isAck()) {
+                            // 3.1.ack，消息成功
+                            log.debug("消息发送成功, ID:{}", correlationData.getId());
+                        } else {//这里可以抛出一个异常，相应的事务就会回滚
+                            // 3.2.nack，消息失败
+                            log.error("消息发送失败, ID:{}, 原因{}", correlationData.getId(), result.getReason());
+                            throw new VideoException("视频保存失败");
+                        }
+                    },
+                    //消息发送失败执行的逻辑
+                    ex -> log.error("消息发送异常, ID:{}, 原因{}", correlationData.getId(), ex.getMessage())
+            );
+            rabbitTemplate.convertAndSend(RabbitMQKeys.POST_VIDEO_EXCHANGE, RabbitMQKeys.VIDEO_POST, authorId, correlationData);
 
             //到这里就可以返回
             log.info("投稿成功");
