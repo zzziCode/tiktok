@@ -17,6 +17,7 @@ import com.zzzi.videoservice.mapper.VideoMapper;
 import com.zzzi.common.result.VideoVO;
 import com.zzzi.videoservice.service.FavoriteService;
 import com.zzzi.videoservice.service.VideoService;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
@@ -62,6 +63,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
      */
     @Override
     @Transactional
+    //@GlobalTransactional
     public void favoriteAction(String token, String video_id) {
         log.info("用户点赞service");
         //获取点赞用户的id
@@ -123,6 +125,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
      */
     @Override
     @Transactional
+    //@GlobalTransactional
     public void favoriteUnAction(String token, String video_id) {
         log.info("用户取消点赞service");
         Long userId = JwtUtils.getUserIdByToken(token);

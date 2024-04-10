@@ -199,9 +199,10 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     public List<VideoVO> getPublishListByAuthorId(String token, Long user_id) {
         log.warn("获取用户列表service，传递的token为：{}", token);
         //判断用户是否登录
-        String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
-        if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
-            throw new VideoListException("当前用户未登录");
+        //不仅仅是自己获取自己的作品，还可能有别人看。所以根据业务打开
+        //String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
+        //if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
+        //    throw new VideoListException("当前用户未登录");
 
         /**@author zzzi
          * @date 2024/4/1 15:11
