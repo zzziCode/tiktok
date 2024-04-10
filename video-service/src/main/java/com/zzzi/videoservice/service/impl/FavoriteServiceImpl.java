@@ -167,10 +167,11 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
     public List<VideoVO> getFavoriteList(String user_id, String token) {
         log.info("获取用户点赞列表service");
 
-        //判断用户是否登录
-        String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
-        if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
-            throw new VideoListException("当前用户未登录");
+        //判断用户是否登录，这里取决于业务
+        //不一定是只有自己获取自己的点赞列表，看业务需求打开或者关闭这段代码,这里默认关闭
+        //String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
+        //if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
+        //    throw new VideoListException("当前用户未登录");
 
         //先从缓存中获取
         Set<String> members = redisTemplate.opsForSet().members(RedisKeys.USER_FAVORITES_PREFIX + user_id);

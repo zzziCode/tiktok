@@ -46,7 +46,7 @@ public class LoginUserInterceptor implements HandlerInterceptor {
         // 验证登录状态
         /**@author zzzi
          * @date 2024/3/29 14:53
-         * 直接根据缓存中是否存在用户的token来判断
+         * 直接根据缓存中是否存在该用户的token来判断
          */
         //String token = request.getParameter("token");
         //log.info("拦截到的请求中，token为：{}", token);

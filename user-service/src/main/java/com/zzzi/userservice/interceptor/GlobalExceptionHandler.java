@@ -84,6 +84,12 @@ public class GlobalExceptionHandler {
         if (ex.getMessage().contains("获取用户粉丝列表失败")) {
             return UserRelationListVO.fail("获取用户粉丝列表失败");
         }
+        if (ex.getMessage().contains("由于用户隐私设置,获取用户关注列表失败")) {
+            return UserRelationListVO.fail("由于用户隐私设置,获取用户关注列表失败");
+        }
+        if (ex.getMessage().contains("由于用户隐私设置,获取用户粉丝列表失败")) {
+            return UserRelationListVO.fail("由于用户隐私设置,获取用户粉丝列表失败");
+        }
         if (ex.getMessage().contains("获取用户好友列表失败")) {
             return UserRelationListVO.fail("获取用户好友列表失败");
         }
