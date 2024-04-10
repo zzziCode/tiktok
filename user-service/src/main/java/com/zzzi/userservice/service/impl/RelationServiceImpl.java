@@ -41,6 +41,8 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
     private UserService userService;
     @Autowired
     private UpdateTokenUtils updateTokenUtils;
+    @Autowired
+    private Gson gson;
 
     /**
      * @author zzzi
@@ -88,7 +90,6 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
 
         //异步更新两个用户的关注数和粉丝数
         //1. 将当前用户和取消关注的用户id封装起来发送过去
-        Gson gson = new Gson();
         UserFollowDO userFollowDO = new UserFollowDO();
         userFollowDO.setFollowerId(followerId);
         userFollowDO.setFollowedId(to_user_id);
@@ -179,7 +180,6 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
 
         //异步更新两个用户的信息表和个人信息缓存
         //1. 将当前关注记录转换成json进行传递
-        Gson gson = new Gson();
         String userFollowDOJson = gson.toJson(userFollowDO);
 
         // 2.全局唯一的消息ID，需要封装到CorrelationData中

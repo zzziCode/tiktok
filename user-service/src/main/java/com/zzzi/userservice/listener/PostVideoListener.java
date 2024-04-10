@@ -31,6 +31,8 @@ public class PostVideoListener {
     private UserMapper userMapper;
     @Autowired
     private UpdateUserInfoUtils updateUserInfoUtils;
+    @Autowired
+    private Gson gson;
 
 
     /**
@@ -60,7 +62,7 @@ public class PostVideoListener {
         //更新用户表中的作品数
         userMapper.updateById(userDO);
 
-        Gson gson = new Gson();
+
         String userDOJson = gson.toJson(userDO);
         //更新用户的缓存
         updateUserInfoUtils.updateUserInfoCache(authorId, userDOJson);

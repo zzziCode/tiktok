@@ -283,7 +283,6 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
                 }
             }
         }
-
         //最后不管怎么样，更新用户token过期时间
         updateTokenUtils.updateTokenExpireTimeUtils(user_id);
         //返回结果

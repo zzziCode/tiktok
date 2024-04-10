@@ -25,6 +25,8 @@ public class UnFavoriteListenerOne {
     private UserMapper userMapper;
     @Autowired
     private UpdateUserInfoUtils updateUserInfoUtils;
+    @Autowired
+    private Gson gson;
 
 
     /**
@@ -50,7 +52,6 @@ public class UnFavoriteListenerOne {
         userMapper.updateById(userB);
 
         //更新两个用户的缓存信息
-        Gson gson = new Gson();
         String userAJson = gson.toJson(userA);
         String userBJson = gson.toJson(userB);
 
