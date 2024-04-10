@@ -41,6 +41,8 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
     private UserService userService;
     @Autowired
     private UpdateTokenUtils updateTokenUtils;
+    @Autowired
+    private Gson gson;
 
     /**
      * @author zzzi
@@ -88,7 +90,6 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
 
         //异步更新两个用户的关注数和粉丝数
         //1. 将当前用户和取消关注的用户id封装起来发送过去
-        Gson gson = new Gson();
         UserFollowDO userFollowDO = new UserFollowDO();
         userFollowDO.setFollowerId(followerId);
         userFollowDO.setFollowedId(to_user_id);
@@ -179,7 +180,6 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
 
         //异步更新两个用户的信息表和个人信息缓存
         //1. 将当前关注记录转换成json进行传递
-        Gson gson = new Gson();
         String userFollowDOJson = gson.toJson(userFollowDO);
 
         // 2.全局唯一的消息ID，需要封装到CorrelationData中
@@ -215,8 +215,10 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         log.info("获取用户关注列表service,token为：{}，user_id为：{}", token, user_id);
         //id和token是否能对上
         String userIdByToken = JwtUtils.getUserIdByToken(token).toString();
+        //这里不一定要是自己获取自己的关注列表，也可能是别人获取我的关注列表
+        //这里默认用户设置别人看不了自己的关注
         if (!user_id.equals(userIdByToken)) {
-            throw new RelationException("获取用户关注列表失败");
+            throw new RelationException("由于用户隐私设置,获取用户关注列表失败");
         }
         //获取所有的关注列表
         Set<String> follows = redisTemplate.opsForSet().members(RedisKeys.USER_FOLLOWS_PREFIX + user_id);
@@ -271,9 +273,10 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
     public List<UserVO> getFollowerList(String user_id, String token) {
         log.info("获取用户粉丝列表service,token为：{}，user_id为：{}", token, user_id);
         //判断token是否正确
+        //这里不一定要是自己获取自己的粉丝列表
         String userIdByToken = JwtUtils.getUserIdByToken(token).toString();
         if (!user_id.equals(userIdByToken)) {
-            throw new RelationException("获取用户关注列表失败");
+            throw new RelationException("由于用户隐私设置,获取用户粉丝列表失败");
         }
 
         //1. 从缓存中获取

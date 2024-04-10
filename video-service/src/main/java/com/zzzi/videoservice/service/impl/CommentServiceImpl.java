@@ -49,6 +49,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
     @Autowired
     private RabbitTemplate rabbitTemplate;
     @Autowired
+    private Gson gson;
+    @Autowired
     private UserClient userClient;
     @Value("${video_comment_max_size}")
     public Long VIDEO_COMMENT_MAX_SIZE;
@@ -84,7 +86,6 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         }
 
         //将视频评论加入缓存中
-        Gson gson = new Gson();
         String commentDOJson = gson.toJson(commentDO);
         redisTemplate.opsForList().leftPush(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id, commentDOJson);
         //视频的评论数过多，此时删除很早的评论
@@ -196,7 +197,6 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
 
             //删除可能存在的默认值
             redisTemplate.delete(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id);
-            Gson gson = new Gson();
             for (CommentDO commentDO : commentDOList) {
                 //将视频详细信息转换成Json
                 String commentDOJson = gson.toJson(commentDO);
@@ -224,7 +224,6 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         List<UserVO> followList = null;
         if (token != null && !"".equals(token))
             followList = userClient.getFollowList(userId.toString(), token).getUser_list();
-        Gson gson = new Gson();
         List<CommentVO> comment_list = new ArrayList<>();
         Map<Long, UserVO> userVOMap = new HashMap<>();
         //先判断是不是缓存的默认值

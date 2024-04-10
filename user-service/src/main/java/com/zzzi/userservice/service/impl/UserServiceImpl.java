@@ -39,6 +39,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private StringRedisTemplate redisTemplate;
     @Autowired
     private UpdateTokenUtils updateTokenUtils;
+    @Autowired
+    private Gson gson;
 
     /**
      * @author zzzi
@@ -206,7 +208,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             userDOJson = RedisDefaultValue.REDIS_DEFAULT_VALUE;
         } else {
             //到这里就是查询到了真的数据
-            Gson gson = new Gson();
             userDOJson = gson.toJson(userDO);
             //重建缓存,先删除默认值，其实这里不用删，因为String会被覆盖
             //redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id);
@@ -231,7 +232,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             return null;
         }
         //这里就是真正的缓存中的用户信息
-        Gson gson = new Gson();
         UserDO userDO = gson.fromJson(userDOJson, UserDO.class);
 
         UserVO userVO = new UserVO();

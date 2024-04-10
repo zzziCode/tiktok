@@ -8,7 +8,6 @@ import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
 import com.zzzi.common.constant.RedisDefaultValue;
 import com.zzzi.common.constant.RedisKeys;
-import com.zzzi.common.exception.FollowException;
 import com.zzzi.common.exception.VideoException;
 import com.zzzi.common.exception.VideoListException;
 import com.zzzi.common.feign.UserClient;
@@ -55,6 +54,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     private UpdateTokenUtils updateTokenUtils;
     @Autowired
     private FavoriteService favoriteService;
+    @Autowired
+    private Gson gson;
     @Value("${video_save_path}")
     public String VIDEO_SAVE_PATH;
     @Value("${cover_save_path}")
@@ -91,7 +92,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
          */
         videoMapper.insert(videoDO);
 
-        Gson gson = new Gson();
         Long videoId = videoDO.getVideoId();
         String videoDOJson = gson.toJson(videoDO);
         String mutex = MD5Utils.parseStrToMd5L32(videoDOJson);
@@ -122,6 +122,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             }
 
             //3. 用户作品列表缓存新增，新增之前需要判断是否有默认值
+            /*这一步操作使用binlog监听实现同步双写，不在这里手动实现*/
             /**@author zzzi
              * @date 2024/3/30 14:23
              *用户作品超过指定就从缓存中删除之前投搞的作品
@@ -198,9 +199,10 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     public List<VideoVO> getPublishListByAuthorId(String token, Long user_id) {
         log.warn("获取用户列表service，传递的token为：{}", token);
         //判断用户是否登录
-        String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
-        if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
-            throw new VideoListException("当前用户未登录");
+        //不仅仅是自己获取自己的作品，还可能有别人看。所以根据业务打开
+        //String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
+        //if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
+        //    throw new VideoListException("当前用户未登录");
 
         /**@author zzzi
          * @date 2024/4/1 15:11
@@ -436,7 +438,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + user_id, RedisDefaultValue.REDIS_DEFAULT_VALUE);
             redisTemplate.expire(RedisKeys.USER_WORKS_PREFIX + user_id, 5, TimeUnit.MINUTES);
         } else {//查询到了数据，存储真实值
-            Gson gson = new Gson();
             for (VideoDO videoDO : videoDOList) {
                 Long videoId = videoDO.getVideoId();
                 userWorkList.add(videoId + "");
@@ -512,7 +513,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      */
     @Override
     public VideoDO getVideoInfo(String videoId) {
-        Gson gson = new Gson();
         VideoDO videoDO = null;
         //1. 先从缓存中获取
         String videoDOJson = redisTemplate.opsForValue().get(RedisKeys.VIDEO_INFO_PREFIX + videoId);
@@ -562,7 +562,6 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         LambdaQueryWrapper<VideoDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(VideoDO::getVideoId, Long.valueOf(videoId));
 
-        Gson gson = new Gson();
         VideoDO videoDO = videoMapper.selectOne(queryWrapper);
         //数据库中没有
         if (videoDO == null) {

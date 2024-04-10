@@ -25,6 +25,8 @@ public class FavoriteListenerOne {
     private VideoMapper videoMapper;
     @Autowired
     private UpdateVideoInfoUtils updateVideoInfoUtils;
+    @Autowired
+    private Gson gson;
 
     @RabbitListener(queues = {RabbitMQKeys.FAVORITE_VIDEO})
     @Transactional
@@ -38,7 +40,6 @@ public class FavoriteListenerOne {
         videoMapper.updateById(videoDO);
 
         //更新视频缓存
-        Gson gson = new Gson();
         String videoDOJson = gson.toJson(videoDO);
         updateVideoInfoUtils.updateVideoInfoCache(videoId, videoDOJson);
     }

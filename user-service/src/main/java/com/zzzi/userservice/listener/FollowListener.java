@@ -29,6 +29,8 @@ public class FollowListener {
     private UserMapper userMapper;
     @Autowired
     private UpdateUserInfoUtils updateUserInfoUtils;
+    @Autowired
+    private Gson gson;
 
 
     /**
@@ -47,7 +49,6 @@ public class FollowListener {
     public void listenToFollow(String userFollowDOJson) {
         log.info("监听到用户关注操作");
         //将接收到的实体转换成实体类
-        Gson gson = new Gson();
         UserFollowDO userFollowDO = gson.fromJson(userFollowDOJson, UserFollowDO.class);
 
         //得到关注者和被关注者的id

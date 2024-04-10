@@ -29,6 +29,8 @@ public class UnFollowListener {
     private UserMapper userMapper;
     @Autowired
     private UpdateUserInfoUtils updateUserInfoUtils;
+    @Autowired
+    private Gson gson;
 
 
     /**
@@ -47,7 +49,6 @@ public class UnFollowListener {
     public void listenToUnFollow(String userUnFollowDOJson) {
         log.info("监听到用户取消关注");
         //将接收到的实体转换成实体类
-        Gson gson = new Gson();
         UserFollowDO userUnFollowDO = gson.fromJson(userUnFollowDOJson, UserFollowDO.class);
 
         //得到取消关注者和被取消关注者的id

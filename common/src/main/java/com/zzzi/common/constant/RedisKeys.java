@@ -8,16 +8,16 @@ package com.zzzi.common.constant;
 public class RedisKeys {
 
     //按照视频发布时间降序存储视频的Zset的key
-    public static final String VIDEO_FEED = "video_feed";
+    public static final String VIDEO_FEED = "video:feed";
 
     //缓存用户token的String的key的前缀
-    public static final String USER_TOKEN_PREFIX = "user_token:";
+    public static final String USER_TOKEN_PREFIX = "user:token:";
 
     //缓存用户信息的String的key的前缀
-    public static final String USER_INFO_PREFIX = "user_info:";
+    public static final String USER_INFO_PREFIX = "user:info:";
 
     //缓存视频信息的String的key的前缀
-    public static final String VIDEO_INFO_PREFIX = "video_info:";
+    public static final String VIDEO_INFO_PREFIX = "video:info:";
 
 
     /**
@@ -26,19 +26,19 @@ public class RedisKeys {
      * 下面是可选项
      */
     //缓存用户所有作品的Set的key的前缀
-    public static final String USER_WORKS_PREFIX = "user_works:";
+    public static final String USER_WORKS_PREFIX = "user:works:";
 
     //缓存用户所有点赞作品的Set的key的前缀
-    public static final String USER_FAVORITES_PREFIX = "user_favorites:";
+    public static final String USER_FAVORITES_PREFIX = "user:favorites:";
 
     //缓存用户所有关注的Set的key的前缀
-    public static final String USER_FOLLOWS_PREFIX = "user_follows:";
+    public static final String USER_FOLLOWS_PREFIX = "user:follows:";
 
     //缓存用户所有粉丝的Set的key的前缀
-    public static final String USER_FOLLOWERS_PREFIX = "user_followers:";
+    public static final String USER_FOLLOWERS_PREFIX = "user:followers:";
 
     //缓存视频所有评论的List的key的前缀
-    public static final String VIDEO_COMMENTS_PREFIX = "video_comments:";
+    public static final String VIDEO_COMMENTS_PREFIX = "video:comments:";
 
     //互斥锁的前缀
     public static final String MUTEX_LOCK_PREFIX = "mutex_lock:";

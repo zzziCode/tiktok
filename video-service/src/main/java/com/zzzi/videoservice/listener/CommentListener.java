@@ -25,6 +25,8 @@ public class CommentListener {
     private VideoMapper videoMapper;
     @Autowired
     private UpdateVideoInfoUtils updateVideoInfoUtils;
+    @Autowired
+    private Gson gson;
 
     @RabbitListener(
             bindings = @QueueBinding(
@@ -44,7 +46,6 @@ public class CommentListener {
         videoMapper.updateById(videoDO);
 
         //更新视频缓存
-        Gson gson = new Gson();
         String videoDOJson = gson.toJson(videoDO);
         updateVideoInfoUtils.updateVideoInfoCache(videoId, videoDOJson);
     }

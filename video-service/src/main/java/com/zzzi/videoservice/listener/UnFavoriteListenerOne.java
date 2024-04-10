@@ -25,6 +25,8 @@ public class UnFavoriteListenerOne {
     private VideoMapper videoMapper;
     @Autowired
     private UpdateVideoInfoUtils updateVideoInfoUtils;
+    @Autowired
+    private Gson gson;
 
 
     /**
@@ -43,7 +45,6 @@ public class UnFavoriteListenerOne {
         videoMapper.updateById(videoDO);
 
         //更新视频缓存
-        Gson gson = new Gson();
         String videoDOJson = gson.toJson(videoDO);
         updateVideoInfoUtils.updateVideoInfoCache(videoId, videoDOJson);
     }

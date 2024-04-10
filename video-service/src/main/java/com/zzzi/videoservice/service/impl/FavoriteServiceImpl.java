@@ -17,6 +17,7 @@ import com.zzzi.videoservice.mapper.VideoMapper;
 import com.zzzi.common.result.VideoVO;
 import com.zzzi.videoservice.service.FavoriteService;
 import com.zzzi.videoservice.service.VideoService;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
@@ -62,6 +63,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
      */
     @Override
     @Transactional
+    //@GlobalTransactional
     public void favoriteAction(String token, String video_id) {
         log.info("用户点赞service");
         //获取点赞用户的id
@@ -123,6 +125,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
      */
     @Override
     @Transactional
+    //@GlobalTransactional
     public void favoriteUnAction(String token, String video_id) {
         log.info("用户取消点赞service");
         Long userId = JwtUtils.getUserIdByToken(token);
@@ -167,10 +170,11 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
     public List<VideoVO> getFavoriteList(String user_id, String token) {
         log.info("获取用户点赞列表service");
 
-        //判断用户是否登录
-        String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
-        if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
-            throw new VideoListException("当前用户未登录");
+        //判断用户是否登录，这里取决于业务
+        //不一定是只有自己获取自己的点赞列表，看业务需求打开或者关闭这段代码,这里默认关闭
+        //String cacheToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + user_id);
+        //if (cacheToken == null || "".equals(cacheToken) || !token.equals(cacheToken))
+        //    throw new VideoListException("当前用户未登录");
 
         //先从缓存中获取
         Set<String> members = redisTemplate.opsForSet().members(RedisKeys.USER_FAVORITES_PREFIX + user_id);
@@ -283,7 +287,6 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
                 }
             }
         }
-
         //最后不管怎么样，更新用户token过期时间
         updateTokenUtils.updateTokenExpireTimeUtils(user_id);
         //返回结果
