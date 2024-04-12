@@ -155,7 +155,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                  * 并且加锁时锁的是当前线程
                  */
                 long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex", currentThreadId + "");
+                Boolean absent = redisTemplate.opsForValue().
+                        setIfAbsent(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 if (!absent) {
                     //不停地调用自己
                     Thread.sleep(50);

@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author zzzi
  * @date 2024/3/29 21:40
@@ -38,7 +40,7 @@ public class UpdateUserInfoUtils {
              * 同时设置用户信息不过期，进一步防止缓存击穿
              */
             long currentThreadId = Thread.currentThread().getId();
-            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "");
+            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
 
             //没拿到互斥锁说明当前用户正在被修改，应该重试
             if (!absent) {
