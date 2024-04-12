@@ -50,6 +50,7 @@ public class BinLogEventHandler implements IBinlogEventHandler<VideoDO> {
         }
     }
 
+    //todo：用户信息和视频信息更新后，尝试直接更新缓存
     @Override
     public void onUpdate(BinlogEvent<VideoDO> binlogEvent) {
         log.info("监听到视频表的更新");

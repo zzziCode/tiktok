@@ -1,7 +1,9 @@
 package com.zzzi.userservice.listener;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
+import com.zzzi.common.exception.FollowException;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.userservice.entity.UserFollowDO;
 import com.zzzi.userservice.mapper.UserMapper;
@@ -12,6 +14,7 @@ import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,14 +65,30 @@ public class UnFollowListener {
         UserDO unFollower = userMapper.selectById(unFollowerId);
 
         //更新取消关注者的关注数
-        Integer followerCount = unFollower.getFollowCount();
-        unFollower.setFollowCount(followerCount - 1);
-        userMapper.updateById(unFollower);
+        Integer followCount = unFollower.getFollowCount();
+        LambdaQueryWrapper<UserDO> followWrapper = new LambdaQueryWrapper<>();
+        //加上乐观锁
+        followWrapper.eq(UserDO::getFollowCount, followCount);
+        unFollower.setFollowCount(followCount - 1);
+        int updateUnFollower = userMapper.update(unFollower, followWrapper);
+        if (updateUnFollower != 1) {
+            //手动实现CAS算法
+            UnFollowListener unFollowListener = (UnFollowListener) AopContext.currentProxy();
+            unFollowListener.listenToUnFollow(userUnFollowDOJson);
+        }
 
         //更新被取消关注者的粉丝数
-        Integer followedCount = unFollowed.getFollowerCount();
-        unFollowed.setFollowerCount(followedCount - 1);
-        userMapper.updateById(unFollowed);
+        Integer followerCount = unFollowed.getFollowerCount();
+        LambdaQueryWrapper<UserDO> followedWrapper = new LambdaQueryWrapper<>();
+        //加上乐观锁
+        followedWrapper.eq(UserDO::getFollowerCount, followerCount);
+        unFollowed.setFollowerCount(followerCount - 1);
+        int updateUnFollowed = userMapper.update(unFollowed, followedWrapper);
+        if (updateUnFollowed != 1) {
+            //手动实现CAS算法
+            UnFollowListener unFollowListener = (UnFollowListener) AopContext.currentProxy();
+            unFollowListener.listenToUnFollow(userUnFollowDOJson);
+        }
 
         //调用方法更新用户缓存
         String followerJson = gson.toJson(unFollower);//主动取消关注者

@@ -1,6 +1,8 @@
 package com.zzzi.videoservice.interceptor;
 
 import com.zzzi.common.exception.*;
+import com.zzzi.common.result.CommentActionVO;
+import com.zzzi.common.result.CommentListVO;
 import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.VideoListVO;
 import lombok.extern.slf4j.Slf4j;
@@ -91,23 +93,23 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(CommentActionException.class)
-    public VideoListVO CommentActionExceptionHandler(CommentActionException ex) {
+    public CommentActionVO CommentActionExceptionHandler(CommentActionException ex) {
         log.error(ex.getMessage());
         if (ex.getMessage().contains("用户评论失败")) {
-            return VideoListVO.fail("用户评论失败");
+            return CommentActionVO.fail("用户评论失败");
         }
         if (ex.getMessage().contains("用户删除评论失败")) {
-            return VideoListVO.fail("用户删除评论失败");
+            return CommentActionVO.fail("用户删除评论失败");
         }
-        return VideoListVO.fail("未知错误");
+        return CommentActionVO.fail("未知错误");
     }
 
     @ExceptionHandler(CommentListException.class)
-    public VideoListVO CommentListExceptionHandler(CommentListException ex) {
+    public CommentListVO CommentListExceptionHandler(CommentListException ex) {
         log.error(ex.getMessage());
         if (ex.getMessage().contains("获取当前视频评论列表失败")) {
-            return VideoListVO.fail("获取当前视频评论列表失败");
+            return CommentListVO.fail("获取当前视频评论列表失败");
         }
-        return VideoListVO.fail("未知错误");
+        return CommentListVO.fail("未知错误");
     }
 }

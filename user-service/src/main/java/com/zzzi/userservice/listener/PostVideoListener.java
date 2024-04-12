@@ -1,5 +1,6 @@
 package com.zzzi.userservice.listener;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
 import com.zzzi.userservice.entity.UserDO;
@@ -11,6 +12,7 @@ import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
@@ -59,8 +61,16 @@ public class PostVideoListener {
 
         //更新用户作品信息
         userDO.setWorkCount(workCount + 1);
+        LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
+        //加上乐观锁
+        queryWrapper.eq(UserDO::getWorkCount, workCount);
         //更新用户表中的作品数
-        userMapper.updateById(userDO);
+        int update = userMapper.update(userDO, queryWrapper);
+        if (update != 1) {
+            //手动实现CAS算法
+            PostVideoListener postVideoListener = (PostVideoListener) AopContext.currentProxy();
+            postVideoListener.listenToPostVideo(authorId);
+        }
 
 
         String userDOJson = gson.toJson(userDO);

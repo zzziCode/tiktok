@@ -127,6 +127,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * @date 2024/3/30 14:23
              *用户作品超过指定就从缓存中删除之前投搞的作品
              * 因为用户主页经常访问的也就是前多少个视频
+             * 用户作品缓存新增的操作放到binlog监听中实现
              */
             //如果用户作品列表中有默认值，此时先删除默认值再添加
             //List<String> userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + authorId, 0, -1);
@@ -181,7 +182,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             String currentThreadId = Thread.currentThread().getId() + "";
             String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
             //加锁的就是当前线程才解锁
-            if (threadId.equals(currentThreadId)) {
+            if (currentThreadId.equals(threadId)) {
                 redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
             }
         }
@@ -231,7 +232,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                     Thread.sleep(50);
                     //不停地调用自己，但是不使用循环依赖的方式
                     VideoService videoService = (VideoService) AopContext.currentProxy();
-                    videoService.getPublishListByAuthorId(token, user_id);
+                    return videoService.getPublishListByAuthorId(token, user_id);
                 }
                 //2. 获取到互斥锁进行二次判断，防止缓存重建多次
                 userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + user_id, 0, -1);
@@ -251,7 +252,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                 String currentThreadId = Thread.currentThread().getId() + "";
                 String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
                 //加锁的就是当前线程才解锁
-                if (threadId.equals(currentThreadId)) {
+                if (currentThreadId.equals(threadId)) {
                     redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
                 }
             }
@@ -325,6 +326,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      * @author zzzi
      * @date 2024/4/2 18:27
      * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+     * zset中的值不能重复，所以不会出现重复放入的情况
      */
     private void rebuildFeedVideoList(List<VideoDO> videoDOList) {
         if (videoDOList != null) {
@@ -391,7 +393,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         for (VideoDO videoDO : videoDOList) {
             Long authorId = videoDO.getAuthorId();
             UserVO userVO = null;
-            if (userVOMap.containsKey(authorId)) {
+            if (userVOMap.containsKey(authorId)) {//有直接复用
                 userVO = userVOMap.get(authorId);
             } else {
                 userVO = userClient.userInfo(authorId).getUser();
@@ -527,7 +529,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                 if (!absent) {
                     Thread.sleep(50);
                     VideoService videoService = (VideoService) AopContext.currentProxy();
-                    videoService.getVideoInfo(videoId);
+                    return videoService.getVideoInfo(videoId);
                 }
                 //再次尝试从缓存中获取
                 videoDOJson = redisTemplate.opsForValue().get(RedisKeys.VIDEO_INFO_PREFIX + videoId);

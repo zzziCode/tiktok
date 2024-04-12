@@ -1,5 +1,6 @@
 package com.zzzi.userservice.listener;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
 import com.zzzi.userservice.entity.UserDO;
@@ -7,6 +8,7 @@ import com.zzzi.userservice.mapper.UserMapper;
 import com.zzzi.common.utils.UpdateUserInfoUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
@@ -44,12 +46,28 @@ public class UnFavoriteListenerTwo {
 
         //A的点赞数+1
         Integer favoriteCount = userA.getFavoriteCount();
+        LambdaQueryWrapper<UserDO> queryWrapperA = new LambdaQueryWrapper<>();
+        //加上乐观锁，判断当前更新时查到的数据是否被其他线程更新过了
+        queryWrapperA.eq(UserDO::getFavoriteCount, favoriteCount);
         userA.setFavoriteCount(favoriteCount - 1);
-        userMapper.updateById(userA);
+        int updateA = userMapper.update(userA, queryWrapperA);
+        if (updateA != 1) {
+            //手动实现CAS算法
+            UnFavoriteListenerTwo UnFavoriteListener = (UnFavoriteListenerTwo) AopContext.currentProxy();
+            UnFavoriteListener.listenToUnFavorite(ids);
+        }
         //B的获赞总数+1
         Long totalFavorited = userB.getTotalFavorited();
+        LambdaQueryWrapper<UserDO> queryWrapperB = new LambdaQueryWrapper<>();
+        //加上乐观锁，判断当前更新时查到的数据是否被其他线程更新过了
+        queryWrapperB.eq(UserDO::getTotalFavorited, totalFavorited);
         userB.setTotalFavorited(totalFavorited - 1);
-        userMapper.updateById(userB);
+        int updateB = userMapper.update(userB, queryWrapperB);
+        if (updateB != 1) {
+            //手动实现CAS算法
+            UnFavoriteListenerTwo UnFavoriteListener = (UnFavoriteListenerTwo) AopContext.currentProxy();
+            UnFavoriteListener.listenToUnFavorite(ids);
+        }
 
         //更新两个用户的缓存信息
         String userAJson = gson.toJson(userA);

@@ -189,7 +189,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
                 if (!absent) {
                     Thread.sleep(50);
                     FavoriteService favoriteService = (FavoriteService) AopContext.currentProxy();
-                    favoriteService.getFavoriteList(user_id, token);
+                    return favoriteService.getFavoriteList(user_id, token);
                 }
                 //加上互斥锁，二次判断获取缓存中的内容
                 members = redisTemplate.opsForSet().members(RedisKeys.USER_FAVORITES_PREFIX + user_id);
@@ -206,7 +206,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
                 String currentThreadId = Thread.currentThread().getId() + "";
                 String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex");
                 //加锁的就是当前线程才解锁
-                if (threadId.equals(currentThreadId)) {
+                if (currentThreadId.equals(threadId)) {
                     redisTemplate.delete(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex");
                 }
             }

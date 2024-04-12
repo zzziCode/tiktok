@@ -139,6 +139,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     public UserVO getUserInfo(String user_id) {
         log.info("获取用户信息service，待查询的用户id为：{}", user_id);
 
+        //todo 这里其实可以将用户以hash的形式存储
         String userDOJson = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id);
         UserVO userVO = null;
         //缓存中获取到当前用户的信息
@@ -159,7 +160,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                     //不停地调用自己
                     Thread.sleep(50);
                     UserService userService = (UserService) AopContext.currentProxy();
-                    userService.getUserInfo(user_id);
+                    return userService.getUserInfo(user_id);
                 }
                 //再次尝试从缓存中获取
                 userDOJson = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id);
@@ -181,7 +182,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 String currentThreadId = Thread.currentThread().getId() + "";
                 String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
                 //加锁的就是当前线程才解锁
-                if (threadId.equals(currentThreadId)) {
+                if (currentThreadId.equals(threadId)) {
                     redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
                 }
             }

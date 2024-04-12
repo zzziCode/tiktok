@@ -127,6 +127,12 @@
             <version>5.1.0</version>
         </dependency>-->
 
+        <!--解决调用aopContext调用时出错-->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

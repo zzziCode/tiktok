@@ -147,7 +147,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
                 if (!absent) {
                     Thread.sleep(50);
                     CommentService commentService = (CommentService) AopContext.currentProxy();
-                    commentService.getCommentList(token, video_id);
+                    return commentService.getCommentList(token, video_id);
                 }
                 //获取到了互斥锁，再次判断缓存中是不是有
                 commentList = redisTemplate.opsForList().range(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id, 0, -1);
@@ -164,7 +164,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
                 String currentThreadId = Thread.currentThread().getId() + "";
                 String threadId = redisTemplate.opsForValue().get(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex");
                 //加锁的就是当前线程才解锁
-                if (threadId.equals(currentThreadId)) {
+                if (currentThreadId.equals(threadId)) {
                     redisTemplate.delete(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex");
                 }
             }

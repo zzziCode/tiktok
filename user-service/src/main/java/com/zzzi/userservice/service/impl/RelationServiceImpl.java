@@ -160,7 +160,7 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
          * 缓存操作失败会进行回滚
          */
         try {
-            //当前用户关注缓存新增，新增之前判断有没有默认值，有的话需要删除
+            //当前用户关注缓存新增，新增之前判断有没有默认值，有的话需要删除，保证数据的一致性
             Set<String> follows = redisTemplate.opsForSet().members(RedisKeys.USER_FOLLOWS_PREFIX + followId);
             if (follows.contains(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
                 redisTemplate.delete(RedisKeys.USER_FOLLOWS_PREFIX + followId);
@@ -233,7 +233,7 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
                 if (!absent) {
                     Thread.sleep(50);
                     RelationService relationService = (RelationService) AopContext.currentProxy();
-                    relationService.getFollowList(user_id, token);
+                    return relationService.getFollowList(user_id, token);
                 }
                 //在这里就是加上了互斥锁，此时二次判断
                 follows = redisTemplate.opsForSet().members(RedisKeys.USER_FOLLOWS_PREFIX + user_id);
@@ -292,7 +292,7 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
                 if (!absent) {
                     Thread.sleep(50);
                     RelationService relationService = (RelationService) AopContext.currentProxy();
-                    relationService.getFollowerList(user_id, token);
+                    return relationService.getFollowerList(user_id, token);
                 }
                 //到这里就是加锁成功，此时再次尝试从缓存中获取
                 followers = redisTemplate.opsForSet().members(RedisKeys.USER_FOLLOWERS_PREFIX + user_id);

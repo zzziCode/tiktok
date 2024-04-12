@@ -21,17 +21,21 @@ public class UpdateUserInfoUtils {
     @Autowired
     private UpdateUserInfoUtils updateUserInfoUtils;
 
-    /**@author zzzi
+    /**
+     * @author zzzi
      * @date 2024/3/31 15:44
      * 先更新数据库再更新缓存
      */
     public void updateUserInfoCache(Long authorId, String userDOJson) {
+        //todo 实现AP模式，牺牲一致性，拿到的可能是旧数据，但是保证业务可用
         String mutex = MD5Utils.parseStrToMd5L32(userDOJson);
         try {
             //拿到互斥锁
             /**@author zzzi
              * @date 2024/3/31 15:37
-             * 当前线程加上互斥锁
+             * 当前线程加上互斥锁，防止大量重建请求同时到达数据库造成数据库压力过大：解决缓存击穿
+             * 加上锁之后只有一个线程缓存重建
+             * 同时设置用户信息不过期，进一步防止缓存击穿
              */
             long currentThreadId = Thread.currentThread().getId();
             Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "");
@@ -61,7 +65,7 @@ public class UpdateUserInfoUtils {
             String currentThreadId = Thread.currentThread().getId() + "";
             String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
             //加锁的就是当前线程才解锁
-            if (threadId.equals(currentThreadId)){
+            if (currentThreadId.equals(threadId)) {
                 redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
             }
         }

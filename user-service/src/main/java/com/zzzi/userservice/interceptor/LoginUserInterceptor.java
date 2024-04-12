@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.utils.JwtUtils;
+import com.zzzi.common.utils.UpdateTokenUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +27,7 @@ import javax.servlet.http.HttpServletResponse;
 @Slf4j
 public class LoginUserInterceptor implements HandlerInterceptor {
     @Autowired
-    private StringRedisTemplate redisTemplate;
+    private UpdateTokenUtils updateTokenUtils;
 
     //除了登录注册，其余的请求都需要带上token，没带就拦截
     @Override
@@ -56,6 +57,7 @@ public class LoginUserInterceptor implements HandlerInterceptor {
         //}
         ////没有抛异常的话就是验签成功
         //Long userId = JwtUtils.getUserIdByToken(token);
+        //todo 登录校验好像有点问题
         //String userToken = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + userId);
         //if (userToken == null || "".equals(userToken)) {
         //    log.error("用户未登录，非法请求");
@@ -64,6 +66,8 @@ public class LoginUserInterceptor implements HandlerInterceptor {
         //    response.getWriter().write(failString);
         //    return false;
         //}
+        //到这一步说明校验完成，此时直接更新用户的token有效期
+        //updateTokenUtils.updateTokenExpireTimeUtils(userId.toString());
         return true;
     }
 }
