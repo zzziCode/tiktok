@@ -228,7 +228,8 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         } else {//缓存中没有，此时加互斥锁进行缓存重建
             try {
                 long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex", currentThreadId + "");
+                Boolean absent = redisTemplate.opsForValue().
+                        setIfAbsent(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //加互斥锁没加上
                 if (!absent) {
                     Thread.sleep(50);
@@ -287,7 +288,8 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         } else {//缓存中目前没有，此时加互斥锁重建缓存
             try {
                 long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex", currentThreadId + "");
+                Boolean absent = redisTemplate.opsForValue().
+                        setIfAbsent(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //加锁失败
                 if (!absent) {
                     Thread.sleep(50);

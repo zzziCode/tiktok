@@ -105,7 +105,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * 当前线程加上互斥锁
              */
             long currentThreadId = Thread.currentThread().getId();
-            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "");
+            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
             //没拿到互斥锁，说明当前视频已经存在并且正在被操作
             if (!absent) {
                 throw new VideoException("视频已经存在");
@@ -226,7 +226,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             try {
                 //1. 先尝试获取互斥锁，没获取到一直尝试，互斥锁的key为用户作品列表的key
                 long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex", currentThreadId + "");
+                Boolean absent = redisTemplate.opsForValue().
+                        setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //没获取到互斥锁，说明当前用户的作品列表正在被被人操作，此时重试
                 if (!absent) {
                     Thread.sleep(50);
@@ -524,7 +525,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         } else {//缓存中没有。尝试缓存重建
             try {
                 long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex", currentThreadId + "");
+                Boolean absent = redisTemplate.opsForValue().
+                        setIfAbsent(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //获取互斥锁失败
                 if (!absent) {
                     Thread.sleep(50);

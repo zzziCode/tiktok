@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author zzzi
  * @date 2024/3/29 21:40
@@ -37,7 +39,7 @@ public class UpdateVideoInfoUtils {
              * 当前线程加上互斥锁
              */
             long currentThreadId = Thread.currentThread().getId();
-            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "");
+            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
 
             //没拿到互斥锁说明当前视频正在被修改，应该重试
             if (!absent) {

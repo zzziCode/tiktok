@@ -143,7 +143,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
             try {
                 //1. 先尝试获取互斥锁，没获取到一直尝试，互斥锁的key为用户作品列表的key
                 long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex", currentThreadId + "");
+                Boolean absent = redisTemplate.opsForValue().
+                        setIfAbsent(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 if (!absent) {
                     Thread.sleep(50);
                     CommentService commentService = (CommentService) AopContext.currentProxy();

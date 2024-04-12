@@ -16,6 +16,12 @@
     <description>极简版抖音通用模块</description>
 
     <dependencies>
+        <!--生成全局唯一id的huttool工具类-->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.8.16</version>
+        </dependency>
         <!--redis的起步依赖-->
         <dependency>
             <groupId>org.springframework.boot</groupId>

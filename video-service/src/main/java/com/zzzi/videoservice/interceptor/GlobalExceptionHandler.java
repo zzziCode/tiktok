@@ -112,4 +112,16 @@ public class GlobalExceptionHandler {
         }
         return CommentListVO.fail("未知错误");
     }
+
+    @ExceptionHandler(RuntimeException.class)
+    public CommonVO CommentListExceptionHandler(RuntimeException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("请勿重复点赞")) {
+            return CommonVO.fail("请勿重复点赞");
+        }
+        if (ex.getMessage().contains("用户点赞失败")) {
+            return CommonVO.fail("用户点赞失败");
+        }
+        return CommonVO.fail("未知错误");
+    }
 }

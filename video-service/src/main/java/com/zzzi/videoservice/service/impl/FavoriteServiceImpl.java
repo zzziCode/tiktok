@@ -77,7 +77,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
         int insert = favoriteMapper.insert(favoriteDO);
         //插入失败进行回滚
         if (insert != 1) {
-            throw new RuntimeException("用户点赞失败");
+            throw new RuntimeException("请勿重复点赞");
         }
 
         //用户点赞作品缓存新增，新增之前是否需要删除
@@ -89,7 +89,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
             }
             redisTemplate.opsForSet().add(RedisKeys.USER_FAVORITES_PREFIX + userId, video_id);
         } catch (Exception e) {
-            throw new RuntimeException("请勿重复点赞");
+            throw new RuntimeException("用户点赞失败");
         }
         //更新用户token
         updateTokenUtils.updateTokenExpireTimeUtils(userId.toString());
@@ -184,7 +184,8 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
             try {
                 //加上互斥锁
                 long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex", currentThreadId + "");
+                Boolean absent = redisTemplate.opsForValue().
+                        setIfAbsent(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //没加上互斥锁
                 if (!absent) {
                     Thread.sleep(50);
