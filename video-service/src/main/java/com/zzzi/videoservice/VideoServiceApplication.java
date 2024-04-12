@@ -11,6 +11,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
@@ -20,6 +21,7 @@ import java.util.Set;
 @SpringBootApplication(scanBasePackages = {"com.zzzi.*"})
 @EnableTransactionManagement//开启事务管理
 @EnableFeignClients(clients = UserClient.class, defaultConfiguration = DefaultFeignConfiguration.class)
+@EnableAspectJAutoProxy(exposeProxy = true)
 public class VideoServiceApplication {
 
     public static void main(String[] args) {

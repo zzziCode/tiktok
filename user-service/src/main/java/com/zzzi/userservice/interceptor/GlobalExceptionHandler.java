@@ -72,6 +72,9 @@ public class GlobalExceptionHandler {
         if (ex.getMessage().contains("用户发送消息失败")) {
             return CommonVO.fail("用户发送消息失败");
         }
+        if (ex.getMessage().contains("用户投稿失败")) {
+            return CommonVO.fail("用户投稿失败");
+        }
         return CommonVO.fail("出现错误");
     }
 

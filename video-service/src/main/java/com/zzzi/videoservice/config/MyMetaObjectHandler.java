@@ -22,6 +22,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void insertFill(MetaObject metaObject) {
         try {
+            //todo 实体类的id使用雪花算法生成全局唯一ID
             this.strictInsertFill(metaObject, "createTime", Date.class, new Date());
             this.strictInsertFill(metaObject, "title", String.class, "抖音记录美好生活");
             //更新时间不管什么时候都自动更新
