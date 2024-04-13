@@ -58,9 +58,6 @@ public class UnFollowListener {
         Long unFollowerId = userUnFollowDO.getFollowerId();
         Long unFollowedId = userUnFollowDO.getFollowedId();
 
-        //查询更新两个用户的信息表和缓存
-        //得到被取消关注者的信息
-        UserDO unFollowed = userMapper.selectById(unFollowedId);
         //得到取消关注者的信息
         UserDO unFollower = userMapper.selectById(unFollowerId);
 
@@ -78,6 +75,8 @@ public class UnFollowListener {
         }
 
         //更新被取消关注者的粉丝数
+        //得到被取消关注者的信息
+        UserDO unFollowed = userMapper.selectById(unFollowedId);
         Integer followerCount = unFollowed.getFollowerCount();
         LambdaQueryWrapper<UserDO> followedWrapper = new LambdaQueryWrapper<>();
         //加上乐观锁

@@ -58,9 +58,6 @@ public class FollowListener {
         Long followerId = userFollowDO.getFollowerId();
         Long followedId = userFollowDO.getFollowedId();
 
-        //查询更新两个用户的信息表和缓存
-        //得到被关注者的信息
-        UserDO followed = userMapper.selectById(followedId);
         //得到关注者的信息
         UserDO follower = userMapper.selectById(followerId);
 
@@ -78,6 +75,8 @@ public class FollowListener {
             followListener.listenToFollow(userFollowDOJson);
         }
         //更新被关注者的粉丝数
+        //得到被关注者的信息
+        UserDO followed = userMapper.selectById(followedId);
         Integer followerCount = followed.getFollowerCount();
         LambdaQueryWrapper<UserDO> followedWrapper = new LambdaQueryWrapper<>();
         followedWrapper.eq(UserDO::getFollowerCount, followerCount);

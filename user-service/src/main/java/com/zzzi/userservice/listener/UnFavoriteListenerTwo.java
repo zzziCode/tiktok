@@ -39,10 +39,9 @@ public class UnFavoriteListenerTwo {
     @RabbitListener(queues = {RabbitMQKeys.UN_FAVORITE_USER})
     @Transactional
     public void listenToUnFavorite(@Payload long[] ids) {
-        log.info("第二个消费者监听到用户取消点赞操作");
+        log.info("第二个消费者监听到用户取消点赞操作，更新用户信息");
         //两个用户都更新
         UserDO userA = userMapper.selectById(ids[0]);
-        UserDO userB = userMapper.selectById(ids[1]);
 
         //A的点赞数+1
         Integer favoriteCount = userA.getFavoriteCount();
@@ -53,10 +52,13 @@ public class UnFavoriteListenerTwo {
         int updateA = userMapper.update(userA, queryWrapperA);
         if (updateA != 1) {
             //手动实现CAS算法
-            UnFavoriteListenerTwo UnFavoriteListener = (UnFavoriteListenerTwo) AopContext.currentProxy();
+            UnFavoriteListenerOne UnFavoriteListener = (UnFavoriteListenerOne) AopContext.currentProxy();
             UnFavoriteListener.listenToUnFavorite(ids);
         }
+
+
         //B的获赞总数+1
+        UserDO userB = userMapper.selectById(ids[1]);
         Long totalFavorited = userB.getTotalFavorited();
         LambdaQueryWrapper<UserDO> queryWrapperB = new LambdaQueryWrapper<>();
         //加上乐观锁，判断当前更新时查到的数据是否被其他线程更新过了
@@ -65,7 +67,7 @@ public class UnFavoriteListenerTwo {
         int updateB = userMapper.update(userB, queryWrapperB);
         if (updateB != 1) {
             //手动实现CAS算法
-            UnFavoriteListenerTwo UnFavoriteListener = (UnFavoriteListenerTwo) AopContext.currentProxy();
+            UnFavoriteListenerOne UnFavoriteListener = (UnFavoriteListenerOne) AopContext.currentProxy();
             UnFavoriteListener.listenToUnFavorite(ids);
         }
 

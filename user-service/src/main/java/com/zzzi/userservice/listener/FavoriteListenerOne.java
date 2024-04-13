@@ -40,10 +40,12 @@ public class FavoriteListenerOne {
     @RabbitListener(queues = {RabbitMQKeys.FAVORITE_USER})
     @Transactional
     public void listenToFavorite(@Payload Long[] ids) {
-        log.info("第一个消费者监听到用户点赞操作");
+        log.info("第一个消费者监听到用户点赞操作，更新用户信息");
+        log.info("第一个消费者监听到用户点赞操作，点赞人id为：{}", ids[0]);
+        log.info("第一个消费者监听到用户点赞操作，更新用户信息，获赞人id为：{}", ids[1]);
         //两个用户都更新
         UserDO userA = userMapper.selectById(ids[0]);
-        UserDO userB = userMapper.selectById(ids[1]);
+
 
         //todo 数据库更新时，尝试加上乐观锁，防止多线程出现问题
         //A的点赞数+1
@@ -59,6 +61,7 @@ public class FavoriteListenerOne {
             favoriteListener.listenToFavorite(ids);
         }
         //B的获赞总数+1
+        UserDO userB = userMapper.selectById(ids[1]);
         Long totalFavorited = userB.getTotalFavorited();
         LambdaQueryWrapper<UserDO> queryWrapperB = new LambdaQueryWrapper<>();
         //加上乐观锁
