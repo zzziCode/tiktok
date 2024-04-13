@@ -19,6 +19,8 @@ import com.zzzi.videoservice.service.FavoriteService;
 import com.zzzi.videoservice.service.VideoService;
 
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +48,8 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
     private UserClient userClient;
     @Autowired
     private UpdateTokenUtils updateTokenUtils;
+    @Autowired
+    private RedissonClient redissonClient;
 
     /**
      * @author zzzi
@@ -69,6 +73,11 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
         //获取点赞用户的id
         Long userId = JwtUtils.getUserIdByToken(token);
         Long videoId = Long.valueOf(video_id);
+        VideoDO videoDO = videoMapper.selectById(videoId);
+        //自己不能点赞自己，防止出错
+        if (videoDO.getAuthorId() == userId) {
+            throw new RuntimeException("自己不能点赞自己");
+        }
         FavoriteDO favoriteDO = new FavoriteDO();
         favoriteDO.setUserId(userId);
         favoriteDO.setVideoId(videoId);
@@ -100,11 +109,11 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
          */
 
         //根据视频id获取到作者id
-        VideoDO videoDO = videoMapper.selectById(videoId);
-        long[] ids = new long[2];
+
+        Long[] ids = new Long[2];
         ids[0] = userId;//保存点赞人的id
         ids[1] = videoDO.getAuthorId();//保存被点赞人的id
-        //发送点赞任何被点赞人的id
+        //发送点赞人和被点赞人的id
         rabbitTemplate.convertAndSend(RabbitMQKeys.FAVORITE_USER, ids);
         //发送视频id
         rabbitTemplate.convertAndSend(RabbitMQKeys.FAVORITE_VIDEO, videoId);
@@ -181,11 +190,13 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
         if (!members.isEmpty()) {//缓存中获取到了
             return packageFavoriteList(members, user_id);
         } else {//缓存中没有，此时缓存重建
+            RLock lock = redissonClient.getLock(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex");
             try {
                 //加上互斥锁
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //没加上互斥锁
                 if (!absent) {
                     Thread.sleep(50);
@@ -204,12 +215,13 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
                 throw new VideoListException("获取用户喜欢列表失败");
             } finally {
                 //最后需要删除互斥锁
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex");
-                //加锁的就是当前线程才解锁
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex");
+                ////加锁的就是当前线程才解锁
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.USER_FAVORITES_PREFIX + user_id + "_mutex");
+                //}
             }
         }
     }

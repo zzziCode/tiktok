@@ -1,7 +1,11 @@
 package com.zzzi.common.utils;
 
 import cn.hutool.core.lang.UUID;
+import cn.hutool.core.util.BooleanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -15,12 +19,13 @@ import java.util.concurrent.TimeUnit;
  * @author zzzi
  * @date 2024/4/12 15:14
  * 在这里实现Redis的分布式可重入锁
+ * 这里是为了了解原理才手写，实践中直接调用Redisson即可
  */
 @Component
 @Slf4j
 public class RedisLockUtils {
 
-    @Resource
+    @Autowired
     private StringRedisTemplate redisTemplate;
     /**
      * @author zzzi

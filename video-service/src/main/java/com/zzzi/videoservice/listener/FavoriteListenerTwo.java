@@ -34,7 +34,7 @@ public class FavoriteListenerTwo {
     @RabbitListener(queues = {RabbitMQKeys.FAVORITE_VIDEO})
     @Transactional
     public void listenToFavorite(@Payload long videoId) {
-        log.info("第二个消费者监听到用户点赞操作");
+        log.info("第二个消费者监听到用户点赞操作，更新视频信息");
 
         //更新视频点赞数
         VideoDO videoDO = videoMapper.selectById(videoId);

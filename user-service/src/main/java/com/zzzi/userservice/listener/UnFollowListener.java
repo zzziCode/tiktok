@@ -16,6 +16,7 @@ import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +50,7 @@ public class UnFollowListener {
             )
     )
     @Transactional
-    public void listenToUnFollow(String userUnFollowDOJson) {
+    public void listenToUnFollow(@Payload String userUnFollowDOJson) {
         log.info("监听到用户取消关注");
         //将接收到的实体转换成实体类
         UserFollowDO userUnFollowDO = gson.fromJson(userUnFollowDOJson, UserFollowDO.class);
@@ -58,9 +59,7 @@ public class UnFollowListener {
         Long unFollowerId = userUnFollowDO.getFollowerId();
         Long unFollowedId = userUnFollowDO.getFollowedId();
 
-        //查询更新两个用户的信息表和缓存
-        //得到被取消关注者的信息
-        UserDO unFollowed = userMapper.selectById(unFollowedId);
+
         //得到取消关注者的信息
         UserDO unFollower = userMapper.selectById(unFollowerId);
 
@@ -78,6 +77,8 @@ public class UnFollowListener {
         }
 
         //更新被取消关注者的粉丝数
+        //得到被取消关注者的信息
+        UserDO unFollowed = userMapper.selectById(unFollowedId);
         Integer followerCount = unFollowed.getFollowerCount();
         LambdaQueryWrapper<UserDO> followedWrapper = new LambdaQueryWrapper<>();
         //加上乐观锁
