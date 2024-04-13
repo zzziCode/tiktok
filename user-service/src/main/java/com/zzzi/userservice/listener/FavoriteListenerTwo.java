@@ -39,10 +39,12 @@ public class FavoriteListenerTwo {
     @RabbitListener(queues = {RabbitMQKeys.FAVORITE_USER})
     @Transactional
     public void listenToFavorite(@Payload Long[] ids) {
-        log.info("第二个消费者监听到用户点赞操作");
+        log.info("第二个消费者监听到用户点赞操作，更新用户信息");
+        log.info("第二个消费者监听到用户点赞操作，点赞人id为：{}", ids[0]);
+        log.info("第二个消费者监听到用户点赞操作，更新用户信息，获赞人id为：{}", ids[1]);
         //两个用户都更新
         UserDO userA = userMapper.selectById(ids[0]);
-        UserDO userB = userMapper.selectById(ids[1]);
+
 
         //todo 数据库更新时，尝试加上乐观锁，防止多线程出现问题
         //A的点赞数+1
@@ -54,10 +56,11 @@ public class FavoriteListenerTwo {
         int updateA = userMapper.update(userA, queryWrapperA);
         if (updateA != 1) {
             //更新失败需要重试，手动实现CAS算法
-            FavoriteListenerTwo favoriteListener = (FavoriteListenerTwo) AopContext.currentProxy();
+            FavoriteListenerOne favoriteListener = (FavoriteListenerOne) AopContext.currentProxy();
             favoriteListener.listenToFavorite(ids);
         }
         //B的获赞总数+1
+        UserDO userB = userMapper.selectById(ids[1]);
         Long totalFavorited = userB.getTotalFavorited();
         LambdaQueryWrapper<UserDO> queryWrapperB = new LambdaQueryWrapper<>();
         //加上乐观锁
@@ -66,7 +69,7 @@ public class FavoriteListenerTwo {
         int updateB = userMapper.update(userB, queryWrapperB);
         if (updateB != 1) {
             //更新失败需要重试，手动实现CAS算法
-            FavoriteListenerTwo favoriteListener = (FavoriteListenerTwo) AopContext.currentProxy();
+            FavoriteListenerOne favoriteListener = (FavoriteListenerOne) AopContext.currentProxy();
             favoriteListener.listenToFavorite(ids);
         }
 
