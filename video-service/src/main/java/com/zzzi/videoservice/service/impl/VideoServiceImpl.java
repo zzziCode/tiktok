@@ -663,7 +663,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             data.transferTo(video);
 
             //抓取一帧存到指定的文件夹中并返回抓取到的文件
-            File cover = VideoUtils.fetchPic(video, COVER_SAVE_PATH + coverName);
+            File cover = VideoUtils.fetchPic(video, COVER_SAVE_PATH, coverName);
 
             //上传文件
             String coverUrl = uploadUtils.upload(cover, "_cover.jpg");

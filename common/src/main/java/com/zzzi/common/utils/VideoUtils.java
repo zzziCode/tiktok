@@ -24,13 +24,20 @@ public class VideoUtils {
      * 抓取视频帧作为封面，保存到本地
      * 返回对应的封面文件
      */
-    public static File fetchPic(File file, String frameFile) {
+    public static File fetchPic(File file, String dirName, String coverName) {
         try {
             FFmpegFrameGrabber ff = new FFmpegFrameGrabber(file);
             ff.start();
             int length = ff.getLengthInFrames();
 
-            File targetFile = new File(frameFile);
+            //保存封面的路径不存在时需要新建
+            File cover_dir = new File(dirName);
+            if (!cover_dir.exists()) {
+                cover_dir.mkdirs();
+            }
+            File targetFile = new File(cover_dir, coverName);
+
+            String frameFile = dirName + coverName;
             int i = 0;
             Frame frame = null;
             while (i < length) {
