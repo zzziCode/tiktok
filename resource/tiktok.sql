@@ -3,6 +3,7 @@ CREATE TABLE `users_1` (
   `user_id` bigint NOT NULL COMMENT '雪花算法生成id',
   `username` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL UNIQUE COMMENT '用户姓名',
   `email` varchar(32) NOT NULL,
+  `phone_num` varchar(11) NOT NULL,
   `password` varchar(200) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'MD5加密后的密码',
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间，自动填充',
   `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间，自动更新',
@@ -15,7 +16,8 @@ CREATE TABLE `users_1` (
   `work_count` int DEFAULT 0 COMMENT '作品数',
   `favorite_count` int DEFAULT 0 COMMENT '点赞数',
   PRIMARY KEY (`user_id`),
-  UNIQUE KEY `unionidx_email_password` (`email`,`password`) USING BTREE
+  UNIQUE KEY `unionidx_email_password` (`email`,`password`) USING BTREE,
+  UNIQUE KEY `idx_phone` (`phone_num`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `users_2`;
@@ -23,6 +25,7 @@ CREATE TABLE `users_2` (
   `user_id` bigint NOT NULL COMMENT '雪花算法生成id',
   `username` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL UNIQUE COMMENT '用户姓名',
   `email` varchar(32) NOT NULL,
+  `phone_num` varchar(11) NOT NULL,
   `password` varchar(200) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'MD5加密后的密码',
   `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间，自动填充',
   `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间，自动更新',
@@ -35,12 +38,13 @@ CREATE TABLE `users_2` (
   `work_count` int DEFAULT 0 COMMENT '作品数',
   `favorite_count` int DEFAULT 0 COMMENT '点赞数',
   PRIMARY KEY (`user_id`),
-  UNIQUE KEY `unionidx_email_password` (`email`,`password`) USING BTREE
+  UNIQUE KEY `unionidx_email_password` (`email`,`password`) USING BTREE,
+  UNIQUE KEY `idx_phone` (`phone_num`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-INSERT INTO `users_1` (user_id, username, email, password, create_time, update_time, follow_count, follower_count, avatar, background_image, signature, total_favorited, work_count, favorite_count) VALUES (1773577575179313154, '1111@qq.com', '1111@qq.com', 'dca86290bc8d422427405ac6ffe4b0e5', '2024-03-31 21:38:50', '2024-04-03 16:52:28', 1, 0, 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg', 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg', '用户C', 0, 1, 0);
-INSERT INTO `users_2` (user_id, username, email, password, create_time, update_time, follow_count, follower_count, avatar, background_image, signature, total_favorited, work_count, favorite_count) VALUES (1773596848777969665, '2323@qq.com', '2323@qq.com', 'dca86290bc8d422427405ac6ffe4b0e5', '2024-03-31 21:37:53', '2024-04-03 16:52:28', 1, 1, 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg', 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg', '用户B', 1, 1, 0);
-INSERT INTO `users_2` (user_id, username, email, password, create_time, update_time, follow_count, follower_count, avatar, background_image, signature, total_favorited, work_count, favorite_count) VALUES (1774363179018199041, '3232@qq.com', '3232@qq.com', 'dca86290bc8d422427405ac6ffe4b0e5', '2024-03-31 21:36:55', '2024-04-03 17:07:48', 1, 2, 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg', 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg', '用户A', 1, 2, 2);
+INSERT INTO `users_1` (user_id, username, email, phone_num, password, create_time, update_time, follow_count, follower_count, avatar, background_image, signature, total_favorited, work_count, favorite_count) VALUES (1773577575179313154, '1111@qq.com', '1111@qq.com', '17739344503' 'dca86290bc8d422427405ac6ffe4b0e5', '2024-03-31 21:38:50', '2024-04-03 16:52:28', 1, 0, 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg', 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg', '用户C', 0, 1, 0);
+INSERT INTO `users_2` (user_id, username, email, phone_num, password, create_time, update_time, follow_count, follower_count, avatar, background_image, signature, total_favorited, work_count, favorite_count) VALUES (1773596848777969665, '2323@qq.com', '2323@qq.com', '17739344503' 'dca86290bc8d422427405ac6ffe4b0e5', '2024-03-31 21:37:53', '2024-04-03 16:52:28', 1, 1, 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg', 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg', '用户B', 1, 1, 0);
+INSERT INTO `users_2` (user_id, username, email, phone_num, password, create_time, update_time, follow_count, follower_count, avatar, background_image, signature, total_favorited, work_count, favorite_count) VALUES (1774363179018199041, '3232@qq.com', '3232@qq.com', '17739344503' 'dca86290bc8d422427405ac6ffe4b0e5', '2024-03-31 21:36:55', '2024-04-03 17:07:48', 1, 2, 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/tiktok_avatar.jpg', 'https://zzzi-img-1313100942.cos.ap-beijing.myqcloud.com/background_image.jpg', '用户A', 1, 2, 2);
 
 
 DROP TABLE IF EXISTS `user_follows_1`;

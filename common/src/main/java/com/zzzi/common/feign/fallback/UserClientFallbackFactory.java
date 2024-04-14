@@ -17,13 +17,19 @@ public class UserClientFallbackFactory implements FallbackFactory<UserClient> {
             @Override
             public UserInfoVO userInfo(Long id) {
                 log.error("查询用户异常", throwable);
-                return new UserInfoVO();
+                return UserInfoVO.fail("查询用户信息异常");
             }
 
             @Override
             public UserRelationListVO getFollowList(String user_id, String token) {
                 log.error("查询关注列表异常", throwable);
-                return new UserRelationListVO();
+                return UserRelationListVO.fail("查询关注列表异常");
+            }
+
+            @Override
+            public UserRelationListVO getFollowerList(String user_id, String token) {
+                log.error("查询粉丝列表异常", throwable);
+                return UserRelationListVO.fail("查询粉丝列表异常");
             }
         };
     }

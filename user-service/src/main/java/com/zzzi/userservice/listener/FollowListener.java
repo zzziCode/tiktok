@@ -3,6 +3,7 @@ package com.zzzi.userservice.listener;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
+import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.exception.FollowException;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.userservice.entity.UserFollowDO;
@@ -17,6 +18,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,8 @@ public class FollowListener {
     private UpdateUserInfoUtils updateUserInfoUtils;
     @Autowired
     private Gson gson;
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
 
     /**
@@ -59,7 +63,6 @@ public class FollowListener {
         Long followerId = userFollowDO.getFollowerId();
         Long followedId = userFollowDO.getFollowedId();
 
-
         //得到关注者的信息
         UserDO follower = userMapper.selectById(followerId);
 
@@ -83,7 +86,14 @@ public class FollowListener {
         Integer followerCount = followed.getFollowerCount();
         LambdaQueryWrapper<UserDO> followedWrapper = new LambdaQueryWrapper<>();
         followedWrapper.eq(UserDO::getFollowerCount, followerCount);
+        /**@author zzzi
+         * @date 2024/4/14 17:21
+         * 粉丝关注量超过1W就将用户添加到大V列表中，认为是大V
+         */
         followed.setFollowerCount(followerCount + 1);
+        if (followerCount + 1 >= 10000) {
+            redisTemplate.opsForSet().add(RedisKeys.USER_HOT, followed.getUserId().toString());
+        }
         int updateFollowed = userMapper.update(followed, followedWrapper);
         if (updateFollowed != 1) {
             throw new FollowException("用户关注失败");

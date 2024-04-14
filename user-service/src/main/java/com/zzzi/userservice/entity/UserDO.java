@@ -47,5 +47,7 @@ public class UserDO extends Model<UserDO> {
     private Integer workCount;
     @TableField(fill = FieldFill.INSERT)
     private Integer favoriteCount;
+    @TableField(fill = FieldFill.INSERT)
+    private String phoneNum;
 
 }

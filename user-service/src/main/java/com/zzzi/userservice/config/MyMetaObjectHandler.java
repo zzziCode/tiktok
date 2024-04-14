@@ -33,6 +33,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
             this.strictInsertFill(metaObject, "totalFavorited", Long.class, 0L);
             this.strictInsertFill(metaObject, "workCount", Integer.class, 0);
             this.strictInsertFill(metaObject, "favoriteCount", Integer.class, 0);
+            this.strictInsertFill(metaObject, "phoneNum", String.class, "17739344503");
         } catch (Exception e) {
             log.error(e.getMessage());
             throw new UserException("属性自动填充失败");
