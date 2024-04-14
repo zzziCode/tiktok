@@ -21,6 +21,8 @@ import com.zzzi.common.result.VideoVO;
 import com.zzzi.videoservice.service.FavoriteService;
 import com.zzzi.videoservice.service.VideoService;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
@@ -55,6 +57,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     private UpdateTokenUtils updateTokenUtils;
     @Autowired
     private FavoriteService favoriteService;
+    @Autowired
+    private RedissonClient redissonClient;
     @Autowired
     private Gson gson;
     @Value("${video_save_path}")
@@ -96,6 +100,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         Long videoId = videoDO.getVideoId();
         String videoDOJson = gson.toJson(videoDO);
         String mutex = MD5Utils.parseStrToMd5L32(videoDOJson);
+        RLock lock = redissonClient.getLock(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
         try {
             //当前用户投稿，需要做以下工作
 
@@ -105,8 +110,9 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * @date 2024/3/31 15:37
              * 当前线程加上互斥锁
              */
-            long currentThreadId = Thread.currentThread().getId();
-            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
+            boolean absent = lock.tryLock();
+            //long currentThreadId = Thread.currentThread().getId();
+            //Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
             //没拿到互斥锁，说明当前视频已经存在并且正在被操作
             if (!absent) {
                 throw new VideoException("视频已经存在");
@@ -174,12 +180,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * @date 2024/3/31 15:37
              * 需要是加锁的线程才能解锁
              */
-            String currentThreadId = Thread.currentThread().getId() + "";
-            String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
-            //加锁的就是当前线程才解锁
-            if (currentThreadId.equals(threadId)) {
-                redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
-            }
+            lock.unlock();
+            //String currentThreadId = Thread.currentThread().getId() + "";
+            //String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            ////加锁的就是当前线程才解锁
+            //if (currentThreadId.equals(threadId)) {
+            //    redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            //}
         }
     }
 
@@ -237,11 +244,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         if (userWorkList != null && !userWorkList.isEmpty()) {//缓存中有
             return packageVideoListVO(userWorkList, userVO, user_id.toString(), token);
         } else {//缓存中没有
+            RLock lock = redissonClient.getLock(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
             try {
                 //1. 先尝试获取互斥锁，没获取到一直尝试，互斥锁的key为用户作品列表的key
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //没获取到互斥锁，说明当前用户的作品列表正在被被人操作，此时重试
                 if (!absent) {
                     Thread.sleep(50);
@@ -264,12 +273,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                  * @date 2024/3/31 15:37
                  * 需要是加锁的线程才能解锁
                  */
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
-                //加锁的就是当前线程才解锁
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
+                ////加锁的就是当前线程才解锁
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
+                //}
             }
         }
     }
@@ -602,10 +612,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         if (videoDOJson != null && !RedisDefaultValue.REDIS_DEFAULT_VALUE.equals(videoDOJson)) {
             videoDO = gson.fromJson(videoDOJson, VideoDO.class);
         } else {//缓存中没有。尝试缓存重建
+            RLock lock = redissonClient.getLock(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
             try {
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                //使用Redisson获取互斥锁
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //获取互斥锁失败
                 if (!absent) {
                     Thread.sleep(50);
@@ -625,12 +638,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                 e.printStackTrace();
             } finally {
                 //删除互斥锁
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
-                //加锁和解锁进程是一个才删除
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
+                ////加锁和解锁进程是一个才删除
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
+                //}
             }
         }
         return videoDO;

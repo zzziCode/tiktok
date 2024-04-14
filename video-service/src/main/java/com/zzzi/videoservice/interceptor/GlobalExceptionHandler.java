@@ -122,6 +122,9 @@ public class GlobalExceptionHandler {
         if (ex.getMessage().contains("用户点赞失败")) {
             return CommonVO.fail("用户点赞失败");
         }
+        if (ex.getMessage().contains("自己不能点赞自己")) {
+            return CommonVO.fail("自己不能点赞自己");
+        }
         return CommonVO.fail("未知错误");
     }
 }

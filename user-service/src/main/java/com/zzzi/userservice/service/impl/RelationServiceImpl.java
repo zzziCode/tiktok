@@ -16,6 +16,8 @@ import com.zzzi.userservice.mapper.RelationMapper;
 import com.zzzi.userservice.service.RelationService;
 import com.zzzi.userservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
@@ -43,6 +45,8 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
     private UpdateTokenUtils updateTokenUtils;
     @Autowired
     private Gson gson;
+    @Autowired
+    private RedissonClient redissonClient;
 
     /**
      * @author zzzi
@@ -226,10 +230,13 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         if (!follows.isEmpty()) {
             return packageFollowListVO(follows, user_id);
         } else {//缓存中没有，此时加互斥锁进行缓存重建
+            RLock lock = redissonClient.getLock(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex");
             try {
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                //直接调用Redisson加锁
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //加互斥锁没加上
                 if (!absent) {
                     Thread.sleep(50);
@@ -252,12 +259,13 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
                  * @date 2024/3/31 16:55
                  * 是加锁的线程才删除锁
                  */
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex");
-                //是当前加锁的线程，此时才删除锁
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex");
+                ////是当前加锁的线程，此时才删除锁
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.USER_FOLLOWS_PREFIX + user_id + "_mutex");
+                //}
             }
         }
     }
@@ -286,10 +294,13 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
         if (!followers.isEmpty()) {
             return packageFollowerListVO(followers, user_id, token);
         } else {//缓存中目前没有，此时加互斥锁重建缓存
+            RLock lock = redissonClient.getLock(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex");
             try {
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                //调用Redisson加锁
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //加锁失败
                 if (!absent) {
                     Thread.sleep(50);
@@ -309,12 +320,13 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
                 throw new RelationException("获取用户粉丝列表失败");
             } finally {
                 //尝试解锁
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex");
-                //是当前加锁的线程，此时才删除锁
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex");
+                ////是当前加锁的线程，此时才删除锁
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.USER_FOLLOWERS_PREFIX + user_id + "_mutex");
+                //}
             }
         }
     }

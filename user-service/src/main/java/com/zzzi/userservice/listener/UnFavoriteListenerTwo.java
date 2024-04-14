@@ -62,7 +62,6 @@ public class UnFavoriteListenerTwo {
             UnFavoriteListener.listenToUnFavorite(ids);
         }
 
-
         //B的获赞总数-1
         UserDO userB = userMapper.selectById(ids[1]);
         Long totalFavorited = userB.getTotalFavorited();

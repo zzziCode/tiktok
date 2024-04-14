@@ -16,6 +16,8 @@ import com.zzzi.userservice.mapper.UserMapper;
 import com.zzzi.common.result.UserVO;
 import com.zzzi.userservice.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -45,6 +47,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private SendMessageUtils sendMessageUtils;
     @Autowired
     private Gson gson;
+    @Autowired
+    private RedissonClient redissonClient;
 
     /**
      * @author zzzi
@@ -207,6 +211,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             //打包需要的信息返回
             userVO = packageUserVO(userDOJson);
         } else {//缓存中没有
+            RLock lock = redissonClient.getLock(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
             try {
                 //双重检查
                 /**@author zzzi
@@ -214,9 +219,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                  * 互斥锁加的时候，不能与原来的键冲突
                  * 并且加锁时锁的是当前线程
                  */
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 if (!absent) {
                     //不停地调用自己
                     Thread.sleep(50);
@@ -240,12 +246,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                  * @date 2024/3/31 15:13
                  * 这里需要判断删除互斥锁的是不是当前进程
                  */
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
-                //加锁的就是当前线程才解锁
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
+                ////加锁的就是当前线程才解锁
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.USER_INFO_PREFIX + user_id + "_mutex");
+                //}
             }
         }
         return userVO;

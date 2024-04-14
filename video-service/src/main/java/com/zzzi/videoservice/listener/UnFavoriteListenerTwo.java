@@ -39,7 +39,7 @@ public class UnFavoriteListenerTwo {
     @RabbitListener(queues = {RabbitMQKeys.UN_FAVORITE_VIDEO})
     @Transactional
     public void listenToUnFavorite(@Payload long videoId) {
-        log.info("第二个消费者监听到用户取消点赞操作");
+        log.info("第二个消费者监听到用户取消点赞操作，更新视频信息");
         //更新视频点赞数
         VideoDO videoDO = videoMapper.selectById(videoId);
         Integer favoriteCount = videoDO.getFavoriteCount();

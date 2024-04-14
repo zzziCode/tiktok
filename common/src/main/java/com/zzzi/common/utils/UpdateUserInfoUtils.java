@@ -3,6 +3,8 @@ package com.zzzi.common.utils;
 import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.exception.UserException;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -23,6 +25,8 @@ public class UpdateUserInfoUtils {
     private StringRedisTemplate redisTemplate;
     @Autowired
     private UpdateUserInfoUtils updateUserInfoUtils;
+    @Autowired
+    private RedissonClient redissonClient;
 
     /**
      * @author zzzi
@@ -32,6 +36,7 @@ public class UpdateUserInfoUtils {
     public void updateUserInfoCache(Long authorId, String userDOJson) {
         //todo 实现AP模式，牺牲一致性，拿到的可能是旧数据，但是保证业务可用
         String mutex = MD5Utils.parseStrToMd5L32(userDOJson);
+        RLock lock = redissonClient.getLock(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
         try {
             //拿到互斥锁
             /**@author zzzi
@@ -40,8 +45,9 @@ public class UpdateUserInfoUtils {
              * 加上锁之后只有一个线程缓存重建
              * 同时设置用户信息不过期，进一步防止缓存击穿
              */
-            long currentThreadId = Thread.currentThread().getId();
-            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
+            boolean absent = lock.tryLock();
+            //long currentThreadId = Thread.currentThread().getId();
+            //Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
 
             //没拿到互斥锁说明当前用户正在被修改，应该重试
             if (!absent) {
@@ -65,12 +71,13 @@ public class UpdateUserInfoUtils {
              * @date 2024/3/31 15:37
              * 需要是加锁的线程才能解锁
              */
-            String currentThreadId = Thread.currentThread().getId() + "";
-            String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
-            //加锁的就是当前线程才解锁
-            if (currentThreadId.equals(threadId)) {
-                redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
-            }
+            lock.unlock();
+            //String currentThreadId = Thread.currentThread().getId() + "";
+            //String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            ////加锁的就是当前线程才解锁
+            //if (currentThreadId.equals(threadId)) {
+            //    redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            //}
         }
     }
 

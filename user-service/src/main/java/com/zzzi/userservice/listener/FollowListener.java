@@ -17,6 +17,7 @@ import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +54,7 @@ public class FollowListener {
             )
     )
     @Transactional
-    public void listenToFollow(String userFollowDOJson) {
+    public void listenToFollow(@Payload String userFollowDOJson) {
         log.info("监听到用户关注操作");
         //将接收到的实体转换成实体类
         UserFollowDO userFollowDO = gson.fromJson(userFollowDOJson, UserFollowDO.class);
@@ -78,6 +79,7 @@ public class FollowListener {
             FollowListener followListener = (FollowListener) AopContext.currentProxy();
             followListener.listenToFollow(userFollowDOJson);
         }
+
         //更新被关注者的粉丝数
         //得到被关注者的信息
         UserDO followed = userMapper.selectById(followedId);

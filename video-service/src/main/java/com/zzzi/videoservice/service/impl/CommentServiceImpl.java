@@ -20,6 +20,8 @@ import com.zzzi.videoservice.service.CommentService;
 import lombok.extern.slf4j.Slf4j;
 import org.bytedeco.javacpp.indexer.HalfArrayIndexer;
 import org.ietf.jgss.GSSName;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
     private RabbitTemplate rabbitTemplate;
     @Autowired
     private Gson gson;
+    @Autowired
+    private RedissonClient redissonClient;
     @Autowired
     private UserClient userClient;
     @Value("${video_comment_max_size}")
@@ -140,11 +144,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         if (commentList != null && !commentList.isEmpty()) {
             return packageCommentListVO(commentList, userId, token);
         } else {//缓存中没有
+            RLock lock = redissonClient.getLock(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex");
             try {
                 //1. 先尝试获取互斥锁，没获取到一直尝试，互斥锁的key为用户作品列表的key
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 if (!absent) {
                     Thread.sleep(50);
                     CommentService commentService = (CommentService) AopContext.currentProxy();
@@ -162,12 +168,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
                 throw new CommentListException("获取当前视频评论列表失败");
             } finally {
                 //最后需要删除互斥锁
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex");
-                //加锁的就是当前线程才解锁
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex");
+                ////加锁的就是当前线程才解锁
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.VIDEO_COMMENTS_PREFIX + video_id + "_mutex");
+                //}
             }
         }
 

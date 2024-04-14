@@ -49,7 +49,6 @@ public class FavoriteListenerTwo {
         //两个用户都更新
         UserDO userA = userMapper.selectById(ids[0]);
 
-
         //todo 数据库更新时，尝试加上乐观锁，防止多线程出现问题
         //A的点赞数+1
         Integer favoriteCount = userA.getFavoriteCount();
@@ -63,6 +62,8 @@ public class FavoriteListenerTwo {
             FavoriteListenerOne favoriteListener = (FavoriteListenerOne) AopContext.currentProxy();
             favoriteListener.listenToFavorite(ids);
         }
+
+
         //B的获赞总数+1
         UserDO userB = userMapper.selectById(ids[1]);
         Long totalFavorited = userB.getTotalFavorited();

@@ -16,6 +16,7 @@ import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +50,7 @@ public class UnFollowListener {
             )
     )
     @Transactional
-    public void listenToUnFollow(String userUnFollowDOJson) {
+    public void listenToUnFollow(@Payload String userUnFollowDOJson) {
         log.info("监听到用户取消关注");
         //将接收到的实体转换成实体类
         UserFollowDO userUnFollowDO = gson.fromJson(userUnFollowDOJson, UserFollowDO.class);
