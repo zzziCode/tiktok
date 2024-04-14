@@ -6,6 +6,8 @@ import com.google.gson.Gson;
 import com.zzzi.common.constant.RedisDefaultValue;
 import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.exception.UserInfoException;
+import com.zzzi.common.exception.ValidCodeException;
+import com.zzzi.common.result.ValidCodeVO;
 import com.zzzi.common.utils.*;
 import com.zzzi.userservice.dto.UserDTO;
 import com.zzzi.userservice.entity.UserDO;
@@ -39,6 +41,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private StringRedisTemplate redisTemplate;
     @Autowired
     private UpdateTokenUtils updateTokenUtils;
+    @Autowired
+    private SendMessageUtils sendMessageUtils;
     @Autowired
     private Gson gson;
 
@@ -102,7 +106,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * 用户不能重复登录，判断依据是什么：用户token是否存在
      */
     @Override
-    public UserDTO login(String username, String password) {
+    public UserDTO loginWithPassWord(String username, String password) {
         log.info("用户登录service,用户名为：{}，密码为：{}", username, password);
         UserDO userDO = getUserDOByPasswordAndUserName(username, password);
         //没有该用户，用户名或密码错误
@@ -110,6 +114,39 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             throw new UserException("登录失败，请确认用户是否注册或者用户名和密码是否正确");
         }
         //到这里就是用户存在，能获取到token就是用户已经登录
+        String token = saveUserInfoToCache(username, userDO);
+        //返回封装的结果
+        return new UserDTO(userDO, "login:token:" + token);
+    }
+
+
+    //使用验证码登录
+    @Override
+    public UserDTO loginWithValidCode(String phoneNum, String validCode) {
+        log.info("用户登录service,电话号为：{}，验证码为：{}", phoneNum, validCode);
+
+        //从redis中取出对应的验证码
+        String validCodeFromCache = redisTemplate.opsForValue().get(RedisKeys.USER_VALID_CODE_PREFIX + phoneNum);
+        if (validCodeFromCache == null || "".equals(validCodeFromCache)) {
+            throw new UserException("验证码过期，请重新发送验证码");
+        }
+
+        if (!validCodeFromCache.equals(validCode)) {
+            throw new UserException("验证码不正确，请输入正确的验证码");
+        }
+
+        //到这里就是输入了正确的验证码，根据手机号获取用户信息
+        LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserDO::getPhoneNum, phoneNum);
+        UserDO userDO = userMapper.selectOne(queryWrapper);
+
+        //将用户信息保存到缓存中，并得到用户的token
+        String token = saveUserInfoToCache(userDO.getUsername(), userDO);
+        //返回封装的结果
+        return new UserDTO(userDO, "login:token:" + token);
+    }
+
+    private String saveUserInfoToCache(String username, UserDO userDO) {
         Long userId = userDO.getUserId();
         String token = redisTemplate.opsForValue().get(RedisKeys.USER_TOKEN_PREFIX + userId);
         //获取到了token，说明用户已经登录
@@ -124,8 +161,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
 
         log.warn("登录重新生成的token为：{}", token);
-        //返回封装的结果
-        return new UserDTO(userDO, "login:token:" + token);
+        return token;
+    }
+
+    @Override
+    public String getValidCode(String phoneNum) {
+        if (!Pattern.matches("^1[3|4|5|7|8][0-9]{9}$", phoneNum))
+            throw new ValidCodeException("手机号格式不对，请重新输入");
+
+        //判断数据库中存不存在这个手机号，从而判断有没有这个用户
+        LambdaQueryWrapper<UserDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserDO::getPhoneNum, phoneNum);
+        UserDO userDO = userMapper.selectOne(queryWrapper);
+        if (userDO == null) {
+            throw new ValidCodeException("用户不存在，不能使用验证码登录，请先注册");
+        }
+        //得到6位验证码
+        String validCode = sendMessageUtils.geneValidCode();
+        //调用腾讯云发送短信接口
+        boolean flag = sendMessageUtils.sendMessage(phoneNum, validCode, "2");
+        //发送验证码失败
+        if (!flag)
+            throw new ValidCodeException("发送验证码失败，请再试一次");
+        //将当前验证码保存到redis中
+        redisTemplate.opsForValue().set(RedisKeys.USER_VALID_CODE_PREFIX + phoneNum, validCode, 2, TimeUnit.MINUTES);
+        return validCode;
     }
 
 
@@ -190,6 +250,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         return userVO;
     }
+
 
     /**
      * @author zzzi

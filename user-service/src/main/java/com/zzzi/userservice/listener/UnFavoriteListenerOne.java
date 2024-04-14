@@ -3,6 +3,7 @@ package com.zzzi.userservice.listener;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
+import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.userservice.mapper.UserMapper;
 import com.zzzi.common.utils.UpdateUserInfoUtils;
@@ -10,9 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -29,6 +34,8 @@ public class UnFavoriteListenerOne {
     private UpdateUserInfoUtils updateUserInfoUtils;
     @Autowired
     private Gson gson;
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
 
     /**
@@ -43,7 +50,7 @@ public class UnFavoriteListenerOne {
         //两个用户都更新
         UserDO userA = userMapper.selectById(ids[0]);
 
-        //A的点赞数+1
+        //A的点赞数-1
         Integer favoriteCount = userA.getFavoriteCount();
         LambdaQueryWrapper<UserDO> queryWrapperA = new LambdaQueryWrapper<>();
         //加上乐观锁，判断当前更新时查到的数据是否被其他线程更新过了
@@ -57,13 +64,20 @@ public class UnFavoriteListenerOne {
         }
 
 
-        //B的获赞总数+1
+        //B的获赞总数-1
         UserDO userB = userMapper.selectById(ids[1]);
         Long totalFavorited = userB.getTotalFavorited();
         LambdaQueryWrapper<UserDO> queryWrapperB = new LambdaQueryWrapper<>();
         //加上乐观锁，判断当前更新时查到的数据是否被其他线程更新过了
         queryWrapperB.eq(UserDO::getTotalFavorited, totalFavorited);
         userB.setTotalFavorited(totalFavorited - 1);
+        /**@author zzzi
+         * @date 2024/4/14 17:20
+         * 获赞总数小于1W时从大V列表中删除
+         */
+        if (totalFavorited - 1 < 10000) {
+            updateUserInfoUtils.deleteHotUserFormCache(userB.getUserId());
+        }
         int updateB = userMapper.update(userB, queryWrapperB);
         if (updateB != 1) {
             //手动实现CAS算法
@@ -78,4 +92,5 @@ public class UnFavoriteListenerOne {
         updateUserInfoUtils.updateUserInfoCache(userA.getUserId(), userAJson);
         updateUserInfoUtils.updateUserInfoCache(userB.getUserId(), userBJson);
     }
+
 }

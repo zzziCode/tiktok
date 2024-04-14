@@ -62,7 +62,7 @@ public class RedisLockUtils {
                 time * 60 * 1000
         );
         //根据返回值是不是1判断执行情况
-        return execute == 1;
+        return execute.intValue() == 1;
 
     }
 

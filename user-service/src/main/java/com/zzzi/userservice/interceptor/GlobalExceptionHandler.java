@@ -1,13 +1,7 @@
 package com.zzzi.userservice.interceptor;
 
-import com.zzzi.common.exception.FollowException;
-import com.zzzi.common.exception.RelationException;
-import com.zzzi.common.exception.UserException;
-import com.zzzi.common.exception.UserInfoException;
-import com.zzzi.common.result.CommonVO;
-import com.zzzi.common.result.UserInfoVO;
-import com.zzzi.common.result.UserRegisterLoginVO;
-import com.zzzi.common.result.UserRelationListVO;
+import com.zzzi.common.exception.*;
+import com.zzzi.common.result.*;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +41,12 @@ public class GlobalExceptionHandler {
         }
         if (ex.getMessage().contains("当前用户已经登录，请不要重复登录")) {
             return UserRegisterLoginVO.fail("当前用户已经登录，请不要重复登录");
+        }
+        if (ex.getMessage().contains("验证码过期，请重新发送验证码")) {
+            return UserRegisterLoginVO.fail("验证码过期，请重新发送验证码");
+        }
+        if (ex.getMessage().contains("验证码不正确，请输入正确的验证码")) {
+            return UserRegisterLoginVO.fail("验证码不正确，请输入正确的验证码");
         }
         return UserRegisterLoginVO.fail("未知错误");
     }
@@ -129,5 +129,21 @@ public class GlobalExceptionHandler {
             return CommonVO.fail("用户关注失败");
         }
         return CommonVO.fail("未知错误");
+    }
+
+    @ExceptionHandler(ValidCodeException.class)
+    public ValidCodeVO ValidCodeExceptionHandler(ValidCodeException ex) {
+        log.error(ex.getMessage());
+        if (ex.getMessage().contains("手机号格式不对，请重新输入")) {
+            return ValidCodeVO.fail("手机号格式不对，请重新输入");
+        }
+        if (ex.getMessage().contains("用户不存在，不能使用验证码登录，请先注册")) {
+            return ValidCodeVO.fail("用户不存在，不能使用验证码登录，请先注册");
+        }
+        if (ex.getMessage().contains("发送验证码失败，请再试一次")) {
+            return ValidCodeVO.fail("发送验证码失败，请再试一次");
+        }
+
+        return ValidCodeVO.fail("未知错误");
     }
 }

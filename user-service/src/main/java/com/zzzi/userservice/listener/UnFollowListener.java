@@ -82,6 +82,13 @@ public class UnFollowListener {
         //加上乐观锁
         followedWrapper.eq(UserDO::getFollowerCount, followerCount);
         unFollowed.setFollowerCount(followerCount - 1);
+        /**@author zzzi
+         * @date 2024/4/14 17:34
+         * 当前用户的粉丝数小于1W，此时将当前用户从大V列表中删除
+         */
+        if (followerCount - 1 < 10000) {
+            updateUserInfoUtils.deleteHotUserFormCache(unFollowed.getUserId());
+        }
         int updateUnFollowed = userMapper.update(unFollowed, followedWrapper);
         if (updateUnFollowed != 1) {
             //手动实现CAS算法

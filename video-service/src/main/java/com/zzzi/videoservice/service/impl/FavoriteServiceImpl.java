@@ -87,6 +87,7 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, FavoriteDO>
             if (members.contains(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
                 redisTemplate.delete(RedisKeys.USER_FAVORITES_PREFIX + userId);
             }
+            //这里也可能出现重复点赞的情况，使用Set去重
             redisTemplate.opsForSet().add(RedisKeys.USER_FAVORITES_PREFIX + userId, video_id);
         } catch (Exception e) {
             throw new RuntimeException("用户点赞失败");
