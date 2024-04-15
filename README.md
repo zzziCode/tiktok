@@ -22,7 +22,10 @@
    - 同步双写：实时性高的信息同步更新
    - 异步通知：RabbitMQ异步更新缓存
    - 后台监听MySQL日志，实时更新缓存
-10. 。。。
+10. 多种模式的`Feed`流，降低推荐视频的延迟:
+ 	 - 热点用户：投稿作品使用拉模式，不主动更新
+  	- 普通用户：投稿时使用推模式将作品推送到粉丝的收件箱中
+11. 。。。
 
 ### :memo::memo:架构设计
 
@@ -96,12 +99,23 @@ tiktok:.
 下载本项目后，需要在各个微服务模块的`application.txt`的后缀名换成`.yml`，之后将每个中间件对应的**地址**替换成自己需要的，然后加上腾讯云cos需要的配置项，例如：
 
 ```yml
-# 腾讯云上传文件的配置
+# videoservice中腾讯云上传文件的配置
 tencent:
   cos:
     secretId: yourSecertId
     secretKey: yourSecretKey
     bucketName: yourBucketName
     region: ap-beijing
+# userservice中腾讯云发送短信的配置
+tencent:
+   sms:
+      secretId: yourSecretId
+      secretKey: yourSecretKey
+      endpoint: yourEndpoint
+      region: yourRegion
+      sdkAppId: yourSdkAppId
+      signName: yourSignName
+      templateId: yourTemplateId
+      signMethod: "HmacSHA256"
 ```
 
