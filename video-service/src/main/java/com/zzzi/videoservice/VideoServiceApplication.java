@@ -21,7 +21,7 @@ import java.util.Set;
 @SpringBootApplication(scanBasePackages = {"com.zzzi.*"})
 @EnableTransactionManagement//开启事务管理
 @EnableFeignClients(clients = UserClient.class, defaultConfiguration = DefaultFeignConfiguration.class)
-@EnableAspectJAutoProxy(exposeProxy = true)
+@EnableAspectJAutoProxy(exposeProxy = true)//可以从AopContext中获取到当前代理对象
 public class VideoServiceApplication {
 
     public static void main(String[] args) {

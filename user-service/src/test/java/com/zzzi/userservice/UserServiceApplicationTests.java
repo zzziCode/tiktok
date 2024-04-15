@@ -7,6 +7,7 @@ import com.zzzi.common.utils.MD5Utils;
 import com.zzzi.common.utils.SendMessageUtils;
 import org.apache.commons.lang.StringUtils;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -74,9 +75,9 @@ class UserServiceApplicationTests {
      * 4. 将验证码和用户手机号的映射关系使用String存储到Redis中
      * 5. 用户输入验证码点击登录，携带手机号和验证码发送请求
      * 6. 收到请求之后进行判断
-     * 6.1 验证码过期返回 “验证码已过期”
-     * 6.2 验证码匹配失败返回 “验证码验证失败”
-     * 6.3 匹配成功放行跳转登录
+     *    6.1 验证码过期返回 “验证码已过期”
+     *    6.2 验证码匹配失败返回 “验证码验证失败”
+     *    6.3 匹配成功放行跳转登录
      */
     @Test
     void testSendMessage() {

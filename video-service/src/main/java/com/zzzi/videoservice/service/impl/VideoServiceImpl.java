@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
-import com.tencentcloudapi.weilingwith.v20230427.models.WorkspaceInfoList;
 import com.zzzi.common.constant.RabbitMQKeys;
 import com.zzzi.common.constant.RedisDefaultValue;
 import com.zzzi.common.constant.RedisKeys;
@@ -197,7 +196,14 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             //所有粉丝的id
             Long followerId = userVO.getId();
             //将自己的作品投递到粉丝的收件箱中，按照时间排序 
-            redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED + followerId, videoId.toString(), time);
+            redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED_PREFIX + followerId, videoId.toString(), time);
+
+            //推荐视频缓存中的数据过多，此时删除前面旧的
+            if (redisTemplate.opsForZSet().size(RedisKeys.VIDEO_FEED_PREFIX + followerId) > VIDEO_FEED_MAX_SIZE) {
+                // redis中zset保存的视频超过5000个了，移除掉前面的
+                redisTemplate.opsForZSet().removeRange(RedisKeys.VIDEO_FEED_PREFIX + followerId, 0, Math.min(VIDEO_FEED_MAX_SIZE >> 1, 100));
+            }
+
         }
     }
 
@@ -294,8 +300,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
 
 
         //加上自己的非大V关注推模式将自己的作品已经推送到了当前用户的收件箱
-        //2. 从收件箱中取出自己的非大V关注推送的作品，Set自动去重
-        Set<String> inBox = redisTemplate.opsForZSet().reverseRangeByScore(RedisKeys.VIDEO_FEED + userId, 0, latest_time - 1);
+        //2. 从收件箱中取出自己的非大V关注推送的作品，Set自动去重，查询0到latest_time - 1之间的
+        Set<String> inBox = redisTemplate.opsForZSet().reverseRangeByScore(RedisKeys.VIDEO_FEED_PREFIX + userId, 0, latest_time - 1);
         List<String> inBoxList = new ArrayList<>(inBox);
         if (inBoxList.size() > FEED_SIZE / 2) {
             //收件箱作品太多，删除一部分
@@ -324,7 +330,9 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
          * 得到下一次推荐视频的时间
          */
         if (videoDOList != null) {
+            //得到下次推荐时间的起点
             long next_time = videoDOList.get(videoDOList.size() - 1).getUpdateTime().getTime();
+            //todo:找到next_time的重复出现次数，防止滚动分页时出现重复元素
             //5. 形成推荐列表
             feedList = packageFeedVideoListWithToken(videoDOList, token);
 
@@ -389,7 +397,9 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
          * 得到下一次推荐视频的时间
          */
         if (videoDOList != null) {
+            //得到下次推荐时间的起点
             long next_time = videoDOList.get(videoDOList.size() - 1).getUpdateTime().getTime();
+            //todo:找到next_time的重复出现次数，防止滚动分页时出现重复元素
             //4. 形成推荐列表
             feedList = packageFeedVideoListWithOutToken(videoDOList);
 
@@ -790,42 +800,10 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
  * 二者结合得到推荐流
  * 1. 传递了token，先获取大V(拉模式)，然后获取自己的关注(推模式)
  * 2. 没有传递token，先获取大V(拉模式)，然后获取video数据集中最新的30个(推模式)
- * @author zzzi
- * @date 2024/4/2 17:08
+ * <p>
  * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
  * 还可以按照点赞数量排序
  * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
- * @author zzzi
- * @date 2024/4/2 18:22
- * 得到下一次推荐视频的时间
- * @author zzzi
- * @date 2024/4/2 18:27
- * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
- * zset中的值不能重复，所以不会出现重复放入的情况
- * @author zzzi
- * @date 2024/4/2 17:08
- * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
- * 还可以按照点赞数量排序
- * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
- * @author zzzi
- * @date 2024/4/2 18:22
- * 得到下一次推荐视频的时间
- * @author zzzi
- * @date 2024/4/2 18:27
- * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
- * zset中的值不能重复，所以不会出现重复放入的情况
- * @author zzzi
- * @date 2024/4/2 17:08
- * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
- * 还可以按照点赞数量排序
- * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
- * @author zzzi
- * @date 2024/4/2 18:22
- * 得到下一次推荐视频的时间
- * @author zzzi
- * @date 2024/4/2 18:27
- * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
- * zset中的值不能重复，所以不会出现重复放入的情况
  * @author zzzi
  * @date 2024/4/2 17:08
  * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据

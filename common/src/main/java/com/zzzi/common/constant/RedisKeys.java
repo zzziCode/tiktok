@@ -8,7 +8,7 @@ package com.zzzi.common.constant;
 public class RedisKeys {
 
     //按照视频发布时间降序存储视频的Zset的key，每个用户一个推荐视频列表
-    public static final String VIDEO_FEED = "video:feed:";
+    public static final String VIDEO_FEED_PREFIX = "video:feed:";
 
     //大V用户的id保存到一个Set中
     public static final String USER_HOT = "user:hot";

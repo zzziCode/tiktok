@@ -18,7 +18,7 @@ import java.util.Set;
 @SpringBootApplication(scanBasePackages = {"com.zzzi.*"})
 //开启事务管理
 @EnableTransactionManagement
-@EnableAspectJAutoProxy(exposeProxy = true)
+@EnableAspectJAutoProxy(exposeProxy = true)//可以从AopContext中获取到当前代理对象
 public class UserServiceApplication {
 
     public static void main(String[] args) {
