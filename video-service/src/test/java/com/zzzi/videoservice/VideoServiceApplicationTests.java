@@ -1,5 +1,6 @@
 package com.zzzi.videoservice;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zzzi.common.utils.JwtUtils;
 import com.zzzi.videoservice.entity.VideoDO;
 import com.zzzi.videoservice.mapper.VideoMapper;
@@ -7,8 +8,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import javax.xml.transform.Source;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 @SpringBootTest
 class VideoServiceApplicationTests {
@@ -40,5 +43,21 @@ class VideoServiceApplicationTests {
         SimpleDateFormat sdf = new SimpleDateFormat("MM-dd");
         String create_date = sdf.format(createTime);
         System.out.println(create_date);
+    }
+
+    @Test
+    void testTime() {
+        System.out.println("1:" + System.currentTimeMillis());
+        long millis = System.currentTimeMillis();
+
+        LambdaQueryWrapper<VideoDO> queryWrapper = new LambdaQueryWrapper<>();
+
+        queryWrapper.gt(VideoDO::getUpdateTime, millis);
+        List<VideoDO> videoDOList = videoMapper.selectList(queryWrapper);
+
+        for (VideoDO videoDO : videoDOList) {
+            System.out.println("每个视频的时间：" + videoDO.getUpdateTime().getTime());
+        }
+
     }
 }

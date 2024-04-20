@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zzzi.common.result.MessageVO;
 import com.zzzi.common.utils.JwtUtils;
 import com.zzzi.common.utils.UpdateTokenUtils;
+import com.zzzi.userservice.controller.MessageController;
 import com.zzzi.userservice.entity.MessageDO;
 import com.zzzi.userservice.mapper.MessageMapper;
 import com.zzzi.userservice.service.MessageService;
