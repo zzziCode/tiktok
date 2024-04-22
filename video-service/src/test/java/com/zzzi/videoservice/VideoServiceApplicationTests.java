@@ -2,21 +2,29 @@ package com.zzzi.videoservice;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zzzi.common.utils.JwtUtils;
+import com.zzzi.common.utils.MinioUploadUtils;
 import com.zzzi.videoservice.entity.VideoDO;
 import com.zzzi.videoservice.mapper.VideoMapper;
+import io.minio.errors.InvalidEndpointException;
+import io.minio.errors.InvalidPortException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.xml.transform.Source;
+import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.PriorityQueue;
 
 @SpringBootTest
 class VideoServiceApplicationTests {
     @Autowired
     private VideoMapper videoMapper;
+    @Autowired
+    private MinioUploadUtils minioUploadUtils;
 
     @Test
     void contextLoads() {
@@ -58,6 +66,12 @@ class VideoServiceApplicationTests {
         for (VideoDO videoDO : videoDOList) {
             System.out.println("每个视频的时间：" + videoDO.getUpdateTime().getTime());
         }
+    }
 
+    @Test
+    void testMinio() throws IOException, InvalidPortException, InvalidEndpointException {
+        File file = new File("C:\\Users\\zzzi\\Desktop\\3daec69277cdeac317257f588ee.mp4");
+        String upload = minioUploadUtils.upload(file, ".,mp4");
+        System.out.println(upload);
     }
 }

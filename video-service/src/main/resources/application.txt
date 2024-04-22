@@ -163,6 +163,14 @@ video_comment_max_size: 5000
 # 每次推荐视频的数量
 feed_size: 30
 
+
+# minio上传文件相关配置
+minio:
+  endPoint: "http://localhost:9000"
+  accessKey: yourAccessKey
+  secretKey: yourSecretKey
+  bucketName: yourBucketName
+
 mybatis-plus:
   configuration:
     #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射
