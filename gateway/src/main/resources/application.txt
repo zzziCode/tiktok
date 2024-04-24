@@ -17,6 +17,10 @@ spring:
     # nacos相关地址
     nacos:
       server-addr: localhost:8848
+    # sentinel相关配置
+        sentinel:
+           transport:
+             dashboard: localhost:8080
     # 网关相关配置
     gateway:
       discovery:
