@@ -1,91 +1,15 @@
 spring:
-  # 数据库相关配置
   main:
     allow-bean-definition-overriding: true
-  shardingsphere:
+  # 数据库相关配置
     datasource:
-      ds:
-        maxPoolSize: 100
-      # master数据库连接信息
-      master0:
-        driver-class-name: com.mysql.jdbc.Driver
-        maxPoolSize: 100
-        minPoolSize: 5
-        username: root
-        password: 123456
-        type: com.alibaba.druid.pool.DruidDataSource
-        url: jdbc:mysql://localhost:3306/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
-      # slaver数据库连接信息
-      slaver0:
-        driver-class-name: com.mysql.jdbc.Driver
-        maxPoolSize: 100
-        minPoolSize: 5
-        username: root
-        password: 123456
-        type: com.alibaba.druid.pool.DruidDataSource
-        url: jdbc:mysql://localhost:3307/tiktok?useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8
-      # 配置数据源
-      names: master0,slaver0
-    # 显示sql
-    props:
-      sql:
-        show: true
-    # 配置默认数据源master 默认数据源,主要用于写
-    sharding:
-      default-database-strategy:
-        inline:
-          sharding-column: user_id
-          algorithm-expression: master$->{user_id % 1}
-      # 配置分表策略
-      tables:
-        comment:
-          actual-data-nodes: master$->{0}.comment_$->{1..8}
-          table-strategy:
-            inline:
-              sharding-column: comment_id
-              algorithm-expression: comment_$->{comment_id % 8 + 1}
-        favorite:
-          actual-data-nodes: master$->{0}.favorite_$->{1..8}
-          table-strategy:
-            inline:
-              sharding-column: favorite_id
-              algorithm-expression: favorite_$->{favorite_id % 8 + 1}
-        user_follows:
-          actual-data-nodes: master$->{0}.user_follows_$->{1..4}
-          table-strategy:
-            inline:
-              sharding-column: user_follows_id
-              algorithm-expression: user_follows_$->{user_follows_id % 4 + 1}
-        users:
-          actual-data-nodes: master$->{0}.users_$->{1..2}
-          table-strategy:
-            inline:
-              sharding-column: user_id
-              algorithm-expression: users_$->{user_id % 2 + 1}
-        video:
-          actual-data-nodes: master$->{0}.video_$->{1..8}
-          table-strategy:
-            inline:
-              sharding-column: video_id
-              algorithm-expression: video_$->{video_id % 8 + 1}
-      master-slave-rules:
-        master0:
-          master-data-source-name: master0
-          slave-data-source-names: slaver0
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://192.168.1.48:4000/tiktok
+      username: root
+      password:
+      type: com.alibaba.druid.pool.DruidDataSource
   application:
     name: videoservice
-  # 监听mysql中binlog变化的配置
-  binlog4j:
-    redis-config:
-      host: 127.0.0.1
-      port: 6379
-    client-configs:
-      master:
-        username: root
-        password: 123456
-        host: localhost
-        port: 3306
-        serverId: 1
   mvc:
     static-path-pattern:server: /**
   # 最大文件大小
