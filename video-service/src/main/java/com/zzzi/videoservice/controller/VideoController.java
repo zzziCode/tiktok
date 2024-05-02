@@ -98,4 +98,5 @@ public class VideoController {
         //只要不出错误，说明成功投稿
         return CommonVO.success("投稿成功");
     }
+
 }

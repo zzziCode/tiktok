@@ -78,9 +78,9 @@ public class MultiPartUploadUtils {
 
             Long finalBatch = batch;
             final CountDownLatch latch = new CountDownLatch(batch.intValue());//使用java并发库concurrent
-            //多线程上传分块文件
+            // 多线程上传分块文件
             // 创建一个固定大小的线程池
-            ExecutorService pool = Executors.newFixedThreadPool(10); // 例如,线程池大小为10
+            ExecutorService pool = Executors.newFixedThreadPool(10); // 线程池大小为10
             uploadPart.forEach((k, v) -> {
                 pool.submit(new Callable<Boolean>() {
                     @Override
@@ -109,6 +109,8 @@ public class MultiPartUploadUtils {
             //拼接访问文件的url
             String url = "https://" + cosUtils.getBucketName() + ".cos." + cosUtils.getRegion() + ".myqcloud.com/" + key;
             log.info("key:{},url:{}", key, url);
+
+            //返回结果
             return url;
         } finally {
             if (cosClient != null) {
