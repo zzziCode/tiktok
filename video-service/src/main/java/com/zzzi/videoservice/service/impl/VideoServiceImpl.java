@@ -55,6 +55,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     @Autowired
     private FavoriteService favoriteService;
     @Autowired
+    private MultiPartUploadUtils multiPartUploadUtils;
+    @Autowired
     private Gson gson;
     @Value("${video_save_path}")
     public String VIDEO_SAVE_PATH;
@@ -652,6 +654,11 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             File cover = VideoUtils.fetchPic(video, COVER_SAVE_PATH, coverName);
 
             //上传文件
+            /**@author zzzi
+             * @date 2024/5/2 22:11
+             * 如果是大文件，还可以使用分片上传
+             */
+            //String videoUrl = multiPartUploadUtils.uploadPart(video);
             String coverUrl = uploadUtils.upload(cover, "_cover.jpg");
             String videoUrl = uploadUtils.upload(video, "_video.mp4");
             /**@author zzzi

@@ -5,6 +5,7 @@ import com.zzzi.common.result.CommonVO;
 import com.zzzi.common.result.VideoFeedListVO;
 import com.zzzi.common.result.VideoListVO;
 import com.zzzi.common.result.VideoVO;
+import com.zzzi.common.utils.MultiPartUploadUtils;
 import com.zzzi.videoservice.dto.VideoFeedDTO;
 import com.zzzi.videoservice.service.VideoService;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +13,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.PostConstruct;
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/douyin")
