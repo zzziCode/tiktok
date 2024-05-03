@@ -15,11 +15,15 @@ public interface VideoService extends IService<VideoDO> {
 
     List<VideoVO> getPublishListByAuthorId(String token, Long user_id);
 
-    VideoFeedDTO getFeedList(Long latest_time, String token);
+    //VideoFeedDTO getFeedList(Long latest_time, String token);
 
     VideoDO getVideoInfo(String videoId);
 
     VideoVO packageVideoVO(VideoDO videoDO, UserVO userVO, String user_id, String token);
 
     VideoVO packageFavoriteVideoVO(VideoDO videoDO, UserVO userVO);
+
+    VideoFeedDTO getFeedListWithOutToken(Long latest_time);
+
+    VideoFeedDTO getFeedListWithToken(Long latest_time, String token);
 }

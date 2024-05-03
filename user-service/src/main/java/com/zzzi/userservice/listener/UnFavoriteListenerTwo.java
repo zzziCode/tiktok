@@ -64,6 +64,13 @@ public class UnFavoriteListenerTwo {
         //加上乐观锁，判断当前更新时查到的数据是否被其他线程更新过了
         queryWrapperB.eq(UserDO::getTotalFavorited, totalFavorited);
         userB.setTotalFavorited(totalFavorited - 1);
+        /**@author zzzi
+         * @date 2024/4/14 17:20
+         * 获赞总数小于1W时从大V列表中删除
+         */
+        if (totalFavorited - 1 < 10000) {
+            updateUserInfoUtils.deleteHotUserFormCache(userB.getUserId());
+        }
         int updateB = userMapper.update(userB, queryWrapperB);
         if (updateB != 1) {
             //手动实现CAS算法

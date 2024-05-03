@@ -49,12 +49,13 @@ public class VideoController {
     /**
      * @author zzzi
      * @date 2024/3/29 12:14
-     * 视频的推流，每次推流三十个视频
-     * 如果没有传递latest_time，就按照当前时间推荐30个，并返回当前推荐视频的最早时间
-     * 30个视频刷完按照这个最早时间继续推荐
+     * 30个视频刷完按照这个当前推荐视频的最早时间继续推荐
      * <p>
      * 没传latest_time，默认为最新时间
-     * 没传token，就不判断当前用户和视频用户的关注关系和视频的点赞关系
+     * 推荐视频时，先拉取自己关注的大V的作品，然后拉取自己的收件箱中的视频
+     * 二者结合得到推荐流
+     * 1. 传递了token，先获取大V(拉模式)，然后获取自己的关注(推模式)
+     * 2. 没有传递token，先获取大V(拉模式)，然后获取video数据集中最新的30个(推模式)
      */
     @GetMapping("/feed")
     public VideoFeedListVO getFeedList(@RequestParam(required = false) Long latest_time,
@@ -70,7 +71,14 @@ public class VideoController {
         if (latest_time == null)
             latest_time = System.currentTimeMillis();
         //默认下次也从当前时间开始推荐，这样视频少的时候可以循环推荐
-        VideoFeedDTO videoFeedDTO = videoService.getFeedList(latest_time, token);
+        //根据是否传递token调用不同的方法
+        VideoFeedDTO videoFeedDTO = null;
+        if ("".equals(token) || token == null) {
+            videoFeedDTO = videoService.getFeedListWithOutToken(latest_time);
+        } else {
+            videoFeedDTO = videoService.getFeedListWithToken(latest_time, token);
+        }
+        //判断返回结果的形式
         if (videoFeedDTO != null) {
             List<VideoVO> videoVOList = videoFeedDTO.getFeed_list();
 

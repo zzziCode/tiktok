@@ -28,4 +28,9 @@ public interface UserClient {
     @GetMapping("/douyin/relation/follow/list/")
     UserRelationListVO getFollowList(@RequestParam("user_id") String user_id,
                                      @RequestParam("token") String token);
+
+    //获取用户粉丝列表
+    @GetMapping("/douyin/relation/follower/list/")
+    UserRelationListVO getFollowerList(@RequestParam("user_id") String user_id,
+                                       @RequestParam("token") String token);
 }

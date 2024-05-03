@@ -3,6 +3,7 @@ package com.zzzi.userservice.listener;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
 import com.zzzi.common.constant.RabbitMQKeys;
+import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.userservice.entity.UserDO;
 import com.zzzi.userservice.mapper.UserMapper;
 import com.zzzi.common.utils.UpdateUserInfoUtils;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,8 @@ public class FavoriteListenerOne {
     private UpdateUserInfoUtils updateUserInfoUtils;
     @Autowired
     private Gson gson;
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
 
     /**
@@ -67,6 +71,13 @@ public class FavoriteListenerOne {
         //加上乐观锁
         queryWrapperB.eq(UserDO::getTotalFavorited, totalFavorited);
         userB.setTotalFavorited(totalFavorited + 1);
+
+        /**@author zzzi
+         * @date 2024/4/14 17:11
+         * 当前用户的获赞总数超过1W就将其保存到缓存中，认为是大V
+         */
+        if (totalFavorited + 1 >= 10000)
+            redisTemplate.opsForSet().add(RedisKeys.USER_HOT, ids[1].toString());
         int updateB = userMapper.update(userB, queryWrapperB);
         if (updateB != 1) {
             //更新失败需要重试，手动实现CAS算法

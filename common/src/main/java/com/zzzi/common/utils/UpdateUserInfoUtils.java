@@ -3,6 +3,7 @@ package com.zzzi.common.utils;
 import com.zzzi.common.constant.RedisKeys;
 import com.zzzi.common.exception.UserException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -69,6 +70,35 @@ public class UpdateUserInfoUtils {
             //加锁的就是当前线程才解锁
             if (currentThreadId.equals(threadId)) {
                 redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            }
+        }
+    }
+
+    public void deleteHotUserFormCache(Long userId) {
+        try {
+            //先针对当前热点用户的缓存加锁
+            //加上互斥锁
+            long currentThreadId = Thread.currentThread().getId();
+            Boolean absent = redisTemplate.opsForValue().
+                    setIfAbsent(RedisKeys.USER_HOT + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+            if (!absent) {
+                Thread.sleep(50);
+                UpdateUserInfoUtils updateUserInfoUtils = (UpdateUserInfoUtils) AopContext.currentProxy();
+                updateUserInfoUtils.deleteHotUserFormCache(userId);
+            }
+            //到这里获取到锁，然后删除这个大V
+            //传递String[]数组会更加好
+            redisTemplate.opsForSet().remove(RedisKeys.USER_HOT, new String[]{userId.toString()});
+        } catch (Exception e) {
+            log.error("删除热点用户：{}s失败", userId);
+            throw new RuntimeException("删除热点用户失败");
+        } finally {
+            //最后需要删除互斥锁
+            String currentThreadId = Thread.currentThread().getId() + "";
+            String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_HOT + "_mutex");
+            //加锁的就是当前线程才解锁
+            if (currentThreadId.equals(threadId)) {
+                redisTemplate.delete(RedisKeys.USER_HOT + "_mutex");
             }
         }
     }

@@ -20,6 +20,8 @@ import com.zzzi.common.result.VideoVO;
 import com.zzzi.videoservice.service.FavoriteService;
 import com.zzzi.videoservice.service.VideoService;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
@@ -34,6 +36,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -55,7 +58,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
     @Autowired
     private FavoriteService favoriteService;
     @Autowired
-    private MultiPartUploadUtils multiPartUploadUtils;
+    private RedissonClient redissonClient;
     @Autowired
     private Gson gson;
     @Value("${video_save_path}")
@@ -97,6 +100,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         Long videoId = videoDO.getVideoId();
         String videoDOJson = gson.toJson(videoDO);
         String mutex = MD5Utils.parseStrToMd5L32(videoDOJson);
+        RLock lock = redissonClient.getLock(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
         try {
             //当前用户投稿，需要做以下工作
 
@@ -106,53 +110,40 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * @date 2024/3/31 15:37
              * 当前线程加上互斥锁
              */
-            long currentThreadId = Thread.currentThread().getId();
-            Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
+            boolean absent = lock.tryLock();
+            //long currentThreadId = Thread.currentThread().getId();
+            //Boolean absent = redisTemplate.opsForValue().setIfAbsent(RedisKeys.MUTEX_LOCK_PREFIX + mutex, currentThreadId + "", 1, TimeUnit.MINUTES);
             //没拿到互斥锁，说明当前视频已经存在并且正在被操作
             if (!absent) {
                 throw new VideoException("视频已经存在");
             }
 
-            //2. 更新推荐视频缓存，主要是插入当前作品的id，因为当前作品新投稿，为最新作品
-            //按照时间降序排列
-            redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED, videoId + "", videoDO.getUpdateTime().getTime());
-            //推荐视频缓存中的数据过多，此时删除前100个
-            if (redisTemplate.opsForZSet().size(RedisKeys.VIDEO_FEED) > VIDEO_FEED_MAX_SIZE) {
-                // redis中zset保存的视频超过5000个了，移除掉前100个视频
-                //不够100个就删除一半
-                redisTemplate.opsForZSet().removeRange(RedisKeys.VIDEO_FEED, 0, Math.min(VIDEO_FEED_MAX_SIZE >> 1, 100));
-            }
+            //2. 更新推荐视频缓存，每个用户的推荐视频缓存已经分开，这里不需要再操作
 
             //3. 用户作品列表缓存新增，新增之前需要判断是否有默认值
             /*这一步操作使用binlog监听实现同步双写，不在这里手动实现*/
-            /**@author zzzi
-             * @date 2024/3/30 14:23
-             *用户作品超过指定就从缓存中删除之前投搞的作品
-             * 因为用户主页经常访问的也就是前多少个视频
-             * 用户作品缓存新增的操作放到binlog监听中实现
-             */
-            //如果用户作品列表中有默认值，此时先删除默认值再添加
-            //List<String> userWorkList = redisTemplate.opsForList().range(RedisKeys.USER_WORKS_PREFIX + authorId, 0, -1);
-            //if (userWorkList.contains(RedisDefaultValue.REDIS_DEFAULT_VALUE)) {
-            //    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + authorId);
-            //}
-            //redisTemplate.opsForList().leftPush(RedisKeys.USER_WORKS_PREFIX + authorId, videoId + "");
-            //while (redisTemplate.opsForList().size(RedisKeys.USER_WORKS_PREFIX + authorId) > USER_WORKS_MAX_SIZE) {
-            //    //从右边删除，代表删除最早投稿的视频
-            //    redisTemplate.opsForList().rightPop(RedisKeys.USER_WORKS_PREFIX + authorId);
-            //}
+
             //4. 视频信息缓存新增
             redisTemplate.opsForValue().set(RedisKeys.VIDEO_INFO_PREFIX + videoId, videoDOJson);
+
+            //当前用户不是大V，那么就将当前用户的投稿视频放到所有粉丝的收件箱中
+            //也就是非大V用户实现推模式，主动推送
+            Set<String> hotUsers = redisTemplate.opsForSet().members(RedisKeys.USER_HOT);
+            if (!hotUsers.contains(authorId.toString())) {
+                pushVideoToFans(authorId, token, videoId, videoDO.getUpdateTime().getTime());
+            }
+            //大V用户的作品放到自己的发件箱中，实现拉模式，不主动推送
+
             /**@author zzzi
              * @date 2024/3/27 19:29
              * 直接让用户作品数+1即可
              * 并且更新用户的基本信息
              */
-            //5. 异步更新用户表中的作品数和缓存中的用户信息
+            //6. 异步更新用户表中的作品数和缓存中的用户信息
 
-            // 5.1.全局唯一的消息ID，需要封装到CorrelationData中
+            // 6.1.全局唯一的消息ID，需要封装到CorrelationData中
             CorrelationData correlationData = new CorrelationData(UUID.randomUUID().toString());
-            // 5.2.添加callback
+            // 6.2.添加callback
             //根据返回的是ack还是nack判断消息是否到达交换机
             correlationData.getFuture().addCallback(
                     //消息发送成功（不一定到交换机），此时执行下面的判断逻辑
@@ -181,12 +172,39 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
              * @date 2024/3/31 15:37
              * 需要是加锁的线程才能解锁
              */
-            String currentThreadId = Thread.currentThread().getId() + "";
-            String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
-            //加锁的就是当前线程才解锁
-            if (currentThreadId.equals(threadId)) {
-                redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            lock.unlock();
+            //String currentThreadId = Thread.currentThread().getId() + "";
+            //String threadId = redisTemplate.opsForValue().get(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            ////加锁的就是当前线程才解锁
+            //if (currentThreadId.equals(threadId)) {
+            //    redisTemplate.delete(RedisKeys.MUTEX_LOCK_PREFIX + mutex);
+            //}
+        }
+    }
+
+    /**
+     * @author zzzi
+     * @date 2024/4/14 19:24
+     * 将非大V用户的投稿视频放到粉丝的收件箱中
+     * 也就是粉丝的推荐视频列表中
+     */
+    private void pushVideoToFans(Long authorId, String token, Long videoId, Long time) {
+        //获取当前用户的所有粉丝列表
+        List<UserVO> followerList = userClient.getFollowerList(authorId.toString(), token).getUser_list();
+
+        //更新每一个粉丝列表的收件箱，也就是推荐视频列表
+        for (UserVO userVO : followerList) {
+            //所有粉丝的id
+            Long followerId = userVO.getId();
+            //将自己的作品投递到粉丝的收件箱中，按照时间排序
+            redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED_PREFIX + followerId, videoId.toString(), time);
+
+            //推荐视频缓存中的数据过多，此时删除前面旧的
+            if (redisTemplate.opsForZSet().size(RedisKeys.VIDEO_FEED_PREFIX + followerId) > VIDEO_FEED_MAX_SIZE) {
+                // redis中zset保存的视频超过5000个了，移除掉前面的
+                redisTemplate.opsForZSet().removeRange(RedisKeys.VIDEO_FEED_PREFIX + followerId, 0, Math.min(VIDEO_FEED_MAX_SIZE >> 1, 100));
             }
+
         }
     }
 
@@ -225,11 +243,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         if (userWorkList != null && !userWorkList.isEmpty()) {//缓存中有
             return packageVideoListVO(userWorkList, userVO, user_id.toString(), token);
         } else {//缓存中没有
+            RLock lock = redissonClient.getLock(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
             try {
                 //1. 先尝试获取互斥锁，没获取到一直尝试，互斥锁的key为用户作品列表的key
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //没获取到互斥锁，说明当前用户的作品列表正在被被人操作，此时重试
                 if (!absent) {
                     Thread.sleep(50);
@@ -252,70 +272,140 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                  * @date 2024/3/31 15:37
                  * 需要是加锁的线程才能解锁
                  */
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
-                //加锁的就是当前线程才解锁
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
+                ////加锁的就是当前线程才解锁
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.USER_WORKS_PREFIX + user_id + "_mutex");
+                //}
             }
         }
     }
 
     /**
      * @author zzzi
-     * @date 2024/3/29 12:23
-     * 如果当前用户登陆了，也就是传递了token，需要判断关注状态和点赞状态
-     * 当前用户没有登陆，默认没关注
-     * 缓存中没有就是别的操作将这个缓存删除了，此时
-     * 拼接VideoVO，is_favorite和is_follow有用户登录才需要判断
+     * @date 2024/4/14 20:28
+     * 传递了token代表登录
+     *
+     * 1. 热点用户的作品
+     * 2. 关注用户的作品
      */
     @Override
-    public VideoFeedDTO getFeedList(Long latest_time, String token) {
-        log.warn("获取推荐视频service，token为：{}", token);
-        //从缓存中获取
-        Set<String> videoFeedSet = redisTemplate.opsForZSet().reverseRangeByScore(RedisKeys.VIDEO_FEED, 0, latest_time - 1, 0, 30);
+    public VideoFeedDTO getFeedListWithToken(Long latest_time, String token) {
+        Long userId = JwtUtils.getUserIdByToken(token);
         List<VideoDO> videoDOList = new ArrayList<>();
         List<VideoVO> feedList = null;
-        //获取到的推荐视频不足，此时从数据库中获取
-        if (videoFeedSet.size() < FEED_SIZE) {
-            //从数据库中获取前FEED_SIZE个
-            Page<VideoDO> page = new Page<>(1, FEED_SIZE);
-            page.addOrder(OrderItem.desc("update_time"));
-            LambdaQueryWrapper<VideoDO> queryWrapper = new LambdaQueryWrapper<>();
-            //默认查询小于当前推荐时间的30个视频，应该有三个
-            queryWrapper.ge(VideoDO::getUpdateTime, latest_time);
+        //1. 先获取所有大v的作品列表(推荐视频的一半)
+        List<String> videoFeedList = getHotUserWorkList();
 
-            /**@author zzzi
-             * @date 2024/4/2 17:08
-             * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
-             */
-            videoDOList = videoMapper.selectPage(page, queryWrapper).getRecords();
 
-            //todo：缓存重建，还有一点小问题，视频更新之后，按照更新时间放入Zset中，此时Zset中有两个相同的视频id
-            //todo：好像Zset中的视频id不能重复，但是分数可以重复，所以这里应该没有问题
-            rebuildFeedVideoList(videoDOList);
-        } else {//缓存中够,此时根据视频id获取视频的实体类
-            //先将数缓存中的视频id转换成VideoDO
-            for (String videoId : videoFeedSet) {
-                VideoDO videoDO = getVideoInfo(videoId);
-                videoDOList.add(videoDO);
+        //加上自己的非大V关注推模式将自己的作品已经推送到了当前用户的收件箱
+        //2. 从收件箱中取出自己的非大V关注推送的作品，Set自动去重，查询0到latest_time - 1之间的
+        Set<String> inBox = redisTemplate.opsForZSet().reverseRangeByScore(RedisKeys.VIDEO_FEED_PREFIX + userId, 0, latest_time - 1);
+        List<String> inBoxList = new ArrayList<>(inBox);
+        if (inBoxList.size() > FEED_SIZE / 2) {
+            //收件箱作品太多，删除一部分
+            while (inBoxList.size() > FEED_SIZE / 2) {
+                inBoxList.remove(inBoxList.size() - 1);
+            }
+            //热点用户的作品太多，删除一部分
+            while (videoFeedList.size() > FEED_SIZE / 2) {
+                videoFeedList.remove(videoFeedList.size() - 1);
             }
         }
+
+        //3. 合并热点用户的作品和当前用户非大V的作品，需要去重
+        videoFeedList.addAll(inBoxList);
+        //4. 根据每一个视频的id，获取到每一个视频的详细信息
+        for (String videoId : videoFeedList) {
+            VideoDO videoDO = getVideoInfo(videoId);
+            //当前作品在规定时间之前，并且不重复才推送
+            if (videoDO.getUpdateTime().getTime() < latest_time && !videoDOList.contains(videoDO))
+                videoDOList.add(videoDO);
+        }
+
         //到这里反正videoDOList已经形成了，也就是得到了推荐视频的VideoDO
         /**@author zzzi
          * @date 2024/4/2 18:22
          * 得到下一次推荐视频的时间
          */
         if (videoDOList != null) {
+            //得到下次推荐时间的起点
             long next_time = videoDOList.get(videoDOList.size() - 1).getUpdateTime().getTime();
-            //传递token 是因为要判断是否需要设置is_favorite和is_follow
-            if (token != null) {
-                feedList = packageFeedVideoListWithToken(videoDOList, token);
-            } else {
-                feedList = packageFeedVideoListWithOutToken(videoDOList);
-            }
-            //返回最终的结果
+            //todo:找到next_time的重复出现次数，防止滚动分页时出现重复元素
+            //5. 形成推荐列表
+            feedList = packageFeedVideoListWithToken(videoDOList, token);
+
+            //6. 返回最终的结果
+            VideoFeedDTO videoFeedDTO = new VideoFeedDTO();
+            videoFeedDTO.setFeed_list(feedList);
+            videoFeedDTO.setNext_time(next_time);
+            return videoFeedDTO;
+        }
+        //数据库和缓存中都没有视频，此时返回null
+        return null;
+    }
+
+
+    /**
+     * @author zzzi
+     * @date 2024/4/14 19:51
+     * 没传递token代表未登录
+     * 推荐视频有以下两部分组成
+     * 1. 热点用户的作品
+     * 2. 数据库中最新的部分作品
+     */
+    @Override
+    public VideoFeedDTO getFeedListWithOutToken(Long latest_time) {
+        List<VideoDO> videoDOList = null;
+        List<VideoVO> feedList = null;
+        //1. 获取所有大v的作品列表
+        List<String> videoFeedList = getHotUserWorkList();
+
+        //热点用户的作品太多，删除一部分
+        while (videoFeedList.size() > FEED_SIZE / 2) {
+            videoFeedList.remove(videoFeedList.size() - 1);
+        }
+
+        //2. 从数据库中查询最新的30个视频
+        Page<VideoDO> page = new Page<>(1, FEED_SIZE / 2);
+        page.addOrder(OrderItem.desc("update_time"));
+        LambdaQueryWrapper<VideoDO> queryWrapper = new LambdaQueryWrapper<>();
+        //默认查询小于当前推荐时间的30个视频，应该有三个
+
+        queryWrapper.ge(VideoDO::getUpdateTime, latest_time);
+
+        /**@author zzzi
+         * @date 2024/4/2 17:08
+         * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+         * 还可以按照点赞数量排序
+         * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+         */
+        videoDOList = videoMapper.selectPage(page, queryWrapper).getRecords();
+
+        //3. 将大V用户的作品转换成VideoDO加入videoDOList，需要去重
+        //根据每一个视频的id，获取到每一个视频的详细信息
+        for (String videoId : videoFeedList) {
+            VideoDO videoDO = getVideoInfo(videoId);
+            //当前作品在规定时间之前，并且没有重复
+            if (videoDO.getUpdateTime().getTime() < latest_time && !videoDOList.contains(videoDO))
+                videoDOList.add(videoDO);
+        }
+
+        //到这里反正videoDOList已经形成了，也就是得到了推荐视频的VideoDO
+        /**@author zzzi
+         * @date 2024/4/2 18:22
+         * 得到下一次推荐视频的时间
+         */
+        if (videoDOList != null) {
+            //得到下次推荐时间的起点
+            long next_time = videoDOList.get(videoDOList.size() - 1).getUpdateTime().getTime();
+            //todo:找到next_time的重复出现次数，防止滚动分页时出现重复元素
+            //4. 形成推荐列表
+            feedList = packageFeedVideoListWithOutToken(videoDOList);
+
+            //5. 返回最终的结果
             VideoFeedDTO videoFeedDTO = new VideoFeedDTO();
             videoFeedDTO.setFeed_list(feedList);
             videoFeedDTO.setNext_time(next_time);
@@ -327,18 +417,36 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
 
     /**
      * @author zzzi
-     * @date 2024/4/2 18:27
-     * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
-     * zset中的值不能重复，所以不会出现重复放入的情况
+     * @date 2024/4/14 20:25
+     * 获取所有大V用户的作品列表，实现拉模式
      */
-    private void rebuildFeedVideoList(List<VideoDO> videoDOList) {
-        if (videoDOList != null) {
-            //将新查询到的数据插入缓存中
-            for (VideoDO videoDO : videoDOList) {
-                Long videoId = videoDO.getVideoId();
-                redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED, videoId + "", videoDO.getUpdateTime().getTime());
+    private List<String> getHotUserWorkList() {
+        //使用Set自动去重
+        Set<String> videoFeedSet = new HashSet<>();
+        Set<String> hotUsers = redisTemplate.opsForSet().members(RedisKeys.USER_HOT);
+        Random random = new Random();
+        //随机留下30%的大V
+        hotUsers.stream()
+                .filter(i -> random.nextDouble() < 0.3)
+                .collect(Collectors.toSet());
+
+        for (String hotUser : hotUsers) {
+            //直接从缓存中取
+            Set<String> works = redisTemplate.opsForSet().members(RedisKeys.USER_WORKS_PREFIX + hotUser);
+            //没有作品直接下一个
+            if (works == null || works.size() == 0) {
+                continue;
             }
+
+            //保存热点用户的视频
+            videoFeedSet.addAll(works);
         }
+        List<String> videoFeedList = new ArrayList<>(videoFeedSet);
+        ////热点用户的作品太多，删除一部分
+        //while (videoFeedList.size() > FEED_SIZE / 2) {
+        //    videoFeedList.remove(videoFeedList.size() - 1);
+        //}
+        return videoFeedList;
     }
 
     /**
@@ -525,10 +633,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         if (videoDOJson != null && !RedisDefaultValue.REDIS_DEFAULT_VALUE.equals(videoDOJson)) {
             videoDO = gson.fromJson(videoDOJson, VideoDO.class);
         } else {//缓存中没有。尝试缓存重建
+            RLock lock = redissonClient.getLock(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
             try {
-                long currentThreadId = Thread.currentThread().getId();
-                Boolean absent = redisTemplate.opsForValue().
-                        setIfAbsent(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
+                //使用Redisson获取互斥锁
+                boolean absent = lock.tryLock();
+                //long currentThreadId = Thread.currentThread().getId();
+                //Boolean absent = redisTemplate.opsForValue().
+                //        setIfAbsent(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex", currentThreadId + "", 1, TimeUnit.MINUTES);
                 //获取互斥锁失败
                 if (!absent) {
                     Thread.sleep(50);
@@ -548,12 +659,13 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                 e.printStackTrace();
             } finally {
                 //删除互斥锁
-                String currentThreadId = Thread.currentThread().getId() + "";
-                String threadId = redisTemplate.opsForValue().get(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
-                //加锁和解锁进程是一个才删除
-                if (currentThreadId.equals(threadId)) {
-                    redisTemplate.delete(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
-                }
+                lock.unlock();
+                //String currentThreadId = Thread.currentThread().getId() + "";
+                //String threadId = redisTemplate.opsForValue().get(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
+                ////加锁和解锁进程是一个才删除
+                //if (currentThreadId.equals(threadId)) {
+                //    redisTemplate.delete(RedisKeys.VIDEO_INFO_PREFIX + videoId + "_mutex");
+                //}
             }
         }
         return videoDO;
@@ -653,9 +765,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
             //抓取一帧存到指定的文件夹中并返回抓取到的文件
             File cover = VideoUtils.fetchPic(video, COVER_SAVE_PATH, coverName);
 
-            //上传文件(如果是大文件，还可以使用分片上传)
-
-            //String videoUrl = multiPartUploadUtils.uploadPart(video);
+            //上传文件
             String coverUrl = uploadUtils.upload(cover, "_cover.jpg");
             String videoUrl = uploadUtils.upload(video, "_video.mp4");
             /**@author zzzi
@@ -686,3 +796,296 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         }
     }
 }
+
+/**
+ * @author zzzi
+ * @date 2024/4/14 16:50
+ * 可以考虑使用多种模式来进行推荐
+ * 粉丝少的用户直接将自己的视频添加到粉丝的收件箱中
+ * 粉丝多的用户不主动推送，粉丝刷到之后才进行更新
+ * <p>
+ * 推荐视频时，先拉取自己关注的大V的作品，然后拉取自己的收件箱中的视频
+ * 二者结合得到推荐流
+ * 1. 传递了token，先获取大V(拉模式)，然后获取自己的关注(推模式)
+ * 2. 没有传递token，先获取大V(拉模式)，然后获取video数据集中最新的30个(推模式)
+ * <p>
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ *//*
+    @Override
+    public VideoFeedDTO getFeedList(Long latest_time, String token) {
+        log.warn("获取推荐视频service，token为：{}", token);
+        //从缓存中获取
+        Set<String> videoFeedSet = redisTemplate.opsForZSet().reverseRangeByScore(RedisKeys.VIDEO_FEED, 0, latest_time - 1, 0, 30);
+        List<VideoDO> videoDOList = new ArrayList<>();
+        List<VideoVO> feedList = null;
+        //获取到的推荐视频不足，此时从数据库中获取
+        if (videoFeedSet.size() < FEED_SIZE) {
+            //从数据库中获取前FEED_SIZE个
+            Page<VideoDO> page = new Page<>(1, FEED_SIZE);
+            page.addOrder(OrderItem.desc("update_time"));
+            LambdaQueryWrapper<VideoDO> queryWrapper = new LambdaQueryWrapper<>();
+            //默认查询小于当前推荐时间的30个视频，应该有三个
+            queryWrapper.ge(VideoDO::getUpdateTime, latest_time);
+
+            *//**@author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ *//*
+            videoDOList = videoMapper.selectPage(page, queryWrapper).getRecords();
+
+            //todo：缓存重建，还有一点小问题，视频更新之后，按照更新时间放入Zset中，此时Zset中有两个相同的视频id
+            //todo：好像Zset中的视频id不能重复，但是分数可以重复，所以这里应该没有问题
+            rebuildFeedVideoList(videoDOList);
+        } else {//缓存中够,此时根据视频id获取视频的实体类
+            //先将数缓存中的视频id转换成VideoDO
+            for (String videoId : videoFeedSet) {
+                VideoDO videoDO = getVideoInfo(videoId);
+                videoDOList.add(videoDO);
+            }
+        }
+        //到这里反正videoDOList已经形成了，也就是得到了推荐视频的VideoDO
+        *//**@author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ *//*
+        if (videoDOList != null) {
+            long next_time = videoDOList.get(videoDOList.size() - 1).getUpdateTime().getTime();
+            //传递token 是因为要判断是否需要设置is_favorite和is_follow
+            if (token != null) {
+                feedList = packageFeedVideoListWithToken(videoDOList, token);
+            } else {
+                feedList = packageFeedVideoListWithOutToken(videoDOList);
+            }
+            //返回最终的结果
+            VideoFeedDTO videoFeedDTO = new VideoFeedDTO();
+            videoFeedDTO.setFeed_list(feedList);
+            videoFeedDTO.setNext_time(next_time);
+            return videoFeedDTO;
+        }
+        //数据库和缓存中都没有视频，此时返回null
+        return null;
+    }
+
+    *//**
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ *//*
+    private void rebuildFeedVideoList(List<VideoDO> videoDOList) {
+        if (videoDOList != null) {
+            //将新查询到的数据插入缓存中
+            for (VideoDO videoDO : videoDOList) {
+                Long videoId = videoDO.getVideoId();
+                redisTemplate.opsForZSet().add(RedisKeys.VIDEO_FEED, videoId + "", videoDO.getUpdateTime().getTime());
+            }
+        }
+    }*/

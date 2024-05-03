@@ -16,6 +16,7 @@ import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +50,7 @@ public class UnFollowListener {
             )
     )
     @Transactional
-    public void listenToUnFollow(String userUnFollowDOJson) {
+    public void listenToUnFollow(@Payload String userUnFollowDOJson) {
         log.info("监听到用户取消关注");
         //将接收到的实体转换成实体类
         UserFollowDO userUnFollowDO = gson.fromJson(userUnFollowDOJson, UserFollowDO.class);
@@ -82,6 +83,13 @@ public class UnFollowListener {
         //加上乐观锁
         followedWrapper.eq(UserDO::getFollowerCount, followerCount);
         unFollowed.setFollowerCount(followerCount - 1);
+        /**@author zzzi
+         * @date 2024/4/14 17:34
+         * 当前用户的粉丝数小于1W，此时将当前用户从大V列表中删除
+         */
+        if (followerCount - 1 < 10000) {
+            updateUserInfoUtils.deleteHotUserFormCache(unFollowed.getUserId());
+        }
         int updateUnFollowed = userMapper.update(unFollowed, followedWrapper);
         if (updateUnFollowed != 1) {
             //手动实现CAS算法
