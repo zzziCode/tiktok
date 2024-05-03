@@ -86,6 +86,19 @@ spring:
         group-id: test-consumer-group
         enable-auto-commit: true
         auto-commit-interval: 3000
+
+# 腾讯云发送短信的配置
+tencent:
+  sms:
+    secretId: yourSecretId
+    secretKey: yourSecretKey
+    endpoint: yourEndpoint
+    region: yourRegion
+    sdkAppId: yourSdkAppId
+    signName: yourSignName
+    templateId: yourTemplateId
+    signMethod: "HmacSHA256"
+
   rabbitmq:
     # 生产者确认类型
     publisher-confirm-type: correlated
