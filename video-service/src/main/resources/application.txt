@@ -209,3 +209,10 @@ seata:
   service:
     vgroup-mapping: # 事务组与TC服务cluster的映射关系
       seata-tiktok: default
+
+# minio上传文件相关配置
+minio:
+  endPoint: "http://localhost:9000"
+  accessKey: yourAccessKey
+  secretKey: yourSecretKey
+  bucketName: yourBucketName
