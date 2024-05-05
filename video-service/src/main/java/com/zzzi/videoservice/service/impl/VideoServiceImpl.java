@@ -287,7 +287,7 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
      * @author zzzi
      * @date 2024/4/14 20:28
      * 传递了token代表登录
-     *
+     * <p>
      * 1. 热点用户的作品
      * 2. 关注用户的作品
      */
@@ -812,6 +812,18 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
  * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
  * 还可以按照点赞数量排序
  * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
  * @author zzzi
  * @date 2024/4/2 17:08
  * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
