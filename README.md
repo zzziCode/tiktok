@@ -14,7 +14,7 @@
 系统整体架构图如下图所示：
 
 <img src="./resource/img/framework.jpg" alt="framework" style="zoom:80%;" />
->需要使用的项目中间件全部使用docker部署到了服务器中
+> 需要使用的项目中间件全部使用docker部署到了服务器中
 
 ### :sun_with_face::sun_with_face:项目特点
 
