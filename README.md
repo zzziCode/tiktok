@@ -26,13 +26,14 @@
 7. 使用存储默认值的形式解决[缓存穿透](https://xiaolincoding.com/redis/cluster/cache_problem.html#%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F)问题
 8. 缓存过期值随机打散+Sentinel限流缓解[缓存雪崩](https://xiaolincoding.com/redis/cluster/cache_problem.html#%E7%BC%93%E5%AD%98%E9%9B%AA%E5%B4%A9)问题
 9. **多种**模式的缓存同步方案：
-   - 同步双写：实时性高的信息同步更新
-   - 异步通知：RabbitMQ异步更新缓存
-   - 后台监听MySQL日志，实时更新缓存
+    - 同步双写：实时性高的信息同步更新
+    - 异步通知：RabbitMQ异步更新缓存
+    - 后台监听MySQL日志，实时更新缓存
 10. 多种模式的`Feed`流，降低推荐视频的延迟:
- 	 - 热点用户：投稿作品使用拉模式，不主动更新
-  	- 普通用户：投稿时使用推模式将作品推送到粉丝的收件箱中
-11. 。。。
+    - 热点用户：投稿作品使用拉模式，不主动更新
+    - 普通用户：投稿时使用推模式将作品推送到粉丝的收件箱中
+11. 实现**父子模式**的评论，前端显示带层级结构，延迟推送所有的子评论列表
+12. 。。。
 
 
 > 需要部署的项目中间件全部使用docker部署到了服务器中
@@ -110,14 +111,14 @@ tencent:
     region: ap-beijing
 # userservice中腾讯云发送短信的配置
 tencent:
-   sms:
-      secretId: yourSecretId
-      secretKey: yourSecretKey
-      endpoint: yourEndpoint
-      region: yourRegion
-      sdkAppId: yourSdkAppId
-      signName: yourSignName
-      templateId: yourTemplateId
-      signMethod: "HmacSHA256"
+  sms:
+    secretId: yourSecretId
+    secretKey: yourSecretKey
+    endpoint: yourEndpoint
+    region: yourRegion
+    sdkAppId: yourSdkAppId
+    signName: yourSignName
+    templateId: yourTemplateId
+    signMethod: "HmacSHA256"
 ```
 
