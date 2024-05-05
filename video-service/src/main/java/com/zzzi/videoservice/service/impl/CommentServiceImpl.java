@@ -61,7 +61,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
             UserVO parent = userClient.userInfo(Long.valueOf(reply_id)).getUser();
             replyName = parent.getName();
         }
-        commentDO.setParent_id(isFather ? 0L : Long.valueOf(parent_id));
+        commentDO.setParentId(isFather ? 0L : Long.valueOf(parent_id));
         commentDO.setReplyId(isFather ? 0L : Long.valueOf(reply_id));
 
         //评论表新增
@@ -97,12 +97,12 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
          * 当前评论是父评论，此时下面的所有子评论也需要删除
          */
         List<CommentDO> commentSonDOList = null;
-        boolean isFather = commentDO.getParent_id() == 0L;
+        boolean isFather = commentDO.getParentId() == 0L;
         String replyName = "";
         if (isFather) {
             //查询当前父评论的所有子评论
             LambdaQueryWrapper<CommentDO> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(CommentDO::getParent_id, commentDO.getCommentId());
+            queryWrapper.eq(CommentDO::getParentId, commentDO.getCommentId());
             //得到当前父评论的所有子评论
             commentSonDOList = commentMapper.selectList(queryWrapper);
             List<Long> idList = new ArrayList<>();
@@ -148,7 +148,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         }
 
         LambdaQueryWrapper<CommentDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(CommentDO::getParent_id, parent_id);
+        queryWrapper.eq(CommentDO::getParentId, parent_id);
         //查询得到所有的子评论
         List<CommentDO> sonDOList = commentMapper.selectList(queryWrapper);
         return packageSonCommentList(sonDOList, userId, token);
@@ -171,7 +171,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         }
 
         LambdaQueryWrapper<CommentDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(CommentDO::getVideoId, video_id).eq(CommentDO::getParent_id, 0L);
+        queryWrapper.eq(CommentDO::getVideoId, video_id).eq(CommentDO::getParentId, 0L);
         //查询得到所有的父评论
         List<CommentDO> parentDOList = commentMapper.selectList(queryWrapper);
 
@@ -215,7 +215,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
             }
             //每一个父评论查询前三条子评论
             LambdaQueryWrapper<CommentDO> sonQueryWrapper = new LambdaQueryWrapper<>();
-            sonQueryWrapper.eq(CommentDO::getParent_id, commentDO.getCommentId());
+            sonQueryWrapper.eq(CommentDO::getParentId, commentDO.getCommentId());
             Page<CommentDO> page = new Page<>(1, 3);
             page.addOrder(OrderItem.desc("update_time"));
             List<CommentDO> sonDoList = commentMapper.selectPage(page, sonQueryWrapper).getRecords();

@@ -24,6 +24,6 @@ public class CommentDO extends Model<CommentDO> {
     private Long videoId;
     @TableField(fill = FieldFill.INSERT)
     private Date createTime;
-    private Long parent_id;
+    private Long parentId;
     private Long replyId;
 }
