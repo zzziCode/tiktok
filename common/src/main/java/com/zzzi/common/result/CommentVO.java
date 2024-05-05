@@ -19,8 +19,6 @@ public class CommentVO {
     //评论日期
     private String create_date;
 
-    //todo：新增三个字段实现父子评论
-    //todo：数据库表增加parent_id(父评论id，没有为NULL)以及to_comment_id(对谁回复的用户id，父评论为NULL)
     /**
      * @author zzzi
      * @date 2024/5/4 22:41
