@@ -13,7 +13,10 @@
 
 系统整体架构图如下图所示：
 
-<img src="./resource/img/framework.jpg" alt="framework" style="zoom:80%;" />
+<p align="center">
+  <img height="500" src="./resource/img/framework.jpg" />
+</p>
+
 > 需要使用的项目中间件全部使用docker部署到了服务器中
 
 ### :sun_with_face::sun_with_face:项目特点
@@ -24,13 +27,13 @@
 4. 引入[**Seata**](https://seata.apache.org/zh-cn/)解决分布式事务问题，加强程序的健壮性；
 5. 引入安全性更高的[**KDF**](https://mp.weixin.qq.com/s/TcGnktKbZK9hrvNvvO7kgQ)算法加强用户登录注册的验证环节，防止用户密码被暴力破解或者出现彩虹表攻击；
 6. [**RabbitMQ**](https://www.rabbitmq.com/)实现流量削峰，提高系统的可用性；
-7. 使用存储默认值的形式解决[缓存穿透](https://xiaolincoding.com/redis/cluster/cache_problem.html#%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F)问题
-8. 缓存过期值随机打散+Sentinel限流缓解[缓存雪崩](https://xiaolincoding.com/redis/cluster/cache_problem.html#%E7%BC%93%E5%AD%98%E9%9B%AA%E5%B4%A9)问题
+7. 使用存储默认值的形式解决[**缓存穿透**](https://xiaolincoding.com/redis/cluster/cache_problem.html#%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F)问题
+8. 缓存过期值随机打散+Sentinel限流缓解[**缓存雪崩**](https://xiaolincoding.com/redis/cluster/cache_problem.html#%E7%BC%93%E5%AD%98%E9%9B%AA%E5%B4%A9)问题
 9. **多种**模式的缓存同步方案：
     - 同步双写：实时性高的信息同步更新
     - 异步通知：RabbitMQ异步更新缓存
     - 后台监听MySQL日志，实时更新缓存
-10. 多种模式的`Feed`流，降低推荐视频的延迟:
+10. 多种模式的**`Feed`**流，降低推荐视频的延迟:
     - 热点用户：投稿作品使用拉模式，不主动更新
     - 普通用户：投稿时使用推模式将作品推送到粉丝的收件箱中
 11. 实现**父子模式**的评论，前端显示带层级结构，延迟推送所有的子评论列表
@@ -41,7 +44,9 @@
 
 项目中涉及到的交换机和队列以及对应的`RoutingKey`如下图所示:
 
-<img src="./resource/img/RabbitMQ.jpg" alt="framework" style="zoom:80%;" />
+<p align="center">
+  <img height="500" src="./resource/img/RabbitMQ.jpg" />
+</p>
 
 > 需要注意的是，项目中专门定义了一个交换机和队列来接收超过重试次数的消息**集中**进行处理
 
