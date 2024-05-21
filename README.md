@@ -13,7 +13,12 @@
 
 系统整体架构图如下图所示：
 
-<img src="./resource/img/framework.jpg" alt="framework" style="zoom:80%;" />
+<p align="center">
+  <img height="500" src="./resource/img/framework.jpg" />
+</p>
+
+> 需要部署的项目中间件全部使用docker部署到了服务器中
+
 ### :sun_with_face::sun_with_face:项目特点
 
 1. 使用主流的[**微服务**](https://spring.io/projects/spring-cloud)架构进行开发，降低项目的耦合度；
@@ -32,7 +37,7 @@
 
 
 
-> 需要部署的项目中间件全部使用docker部署到了服务器中
+
 
 ### :rabbit::rabbit:RabbitMQ设计
 
