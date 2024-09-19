@@ -11,13 +11,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author zzzi
@@ -28,7 +27,7 @@ import java.util.concurrent.Executors;
 @Component
 public class MultiPartUploadUtils {
 
-    @Autowired
+    @Resource
     private COSUtils cosUtils;
 
     public String uploadPart(File file) throws InterruptedException, IOException {
@@ -43,7 +42,7 @@ public class MultiPartUploadUtils {
         //3. 计算文件总大小
         long totalSize = fileByte.length;
 
-        //4. 设置分块大小：1M
+        //4. 设置分块大小：10Mb
         byte data[] = new byte[1024 * 1024 * 10];
         int batchSize = data.length;
 
@@ -60,7 +59,7 @@ public class MultiPartUploadUtils {
             InitiateMultipartUploadResult initiateMultipartUploadResult = cosClient.initiateMultipartUpload(initiateMultipartUploadRequest);
 
             //文件分块
-            List<PartETag> partETagList = new ArrayList<>();
+            List<PartETag> partETagList = new CopyOnWriteArrayList<>();
             Map<Integer, InputStream> uploadPart = new HashMap<>();
             for (int i = 0; i < batch; i++) {
                 // 如果是最后一个分块，需要重新计算分块大小
@@ -77,12 +76,22 @@ public class MultiPartUploadUtils {
             }
 
             Long finalBatch = batch;
-            final CountDownLatch latch = new CountDownLatch(batch.intValue());//使用java并发库concurrent
+            final CountDownLatch latch = new CountDownLatch(batch.intValue()); //JUC的使用
             // 多线程上传分块文件
-            // 创建一个固定大小的线程池
-            ExecutorService pool = Executors.newFixedThreadPool(10); // 线程池大小为10
+            // 创建一个大小为10的线程池
+            AtomicInteger c = new AtomicInteger(1);
+            ExecutorService pool = new ThreadPoolExecutor(
+                    24,
+                    24,
+                    30L,
+                    TimeUnit.SECONDS,
+                    new ArrayBlockingQueue<>(10),
+                    r -> new Thread(r, "Thread-" + c.getAndIncrement()),
+                    new ThreadPoolExecutor.AbortPolicy()
+            );
+            //每一个分块使用线程池中的一个线程上传，使用CountDownLatch计数，所有分片上传完毕再合并
             uploadPart.forEach((k, v) -> {
-                pool.submit(new Callable<Boolean>() {
+                pool.submit(new Callable<Boolean>() { //这里必须用Callable，只有他才能抛出异常
                     @Override
                     public Boolean call() throws Exception {
                         PartETag partETag = uploadPartFile(initiateMultipartUploadResult.getUploadId(), key, v, k, finalBatch.intValue());
@@ -93,8 +102,6 @@ public class MultiPartUploadUtils {
                     }
                 });
             });
-
-
             //主线程
             latch.await();//阻塞当前线程直到latch中数值为零才执行
             System.out.println("主线程执行！");
@@ -103,7 +110,7 @@ public class MultiPartUploadUtils {
                     cosUtils.getBucketName(),
                     key,
                     initiateMultipartUploadResult.getUploadId(),
-                    partETagList
+                    partETagList //每个分片上传都有一个partTag的返回值，根据这些partTag合并所有分片
             );
             cosClient.completeMultipartUpload(completeMultipartUploadRequest);
             //拼接访问文件的url
@@ -148,3 +155,4 @@ public class MultiPartUploadUtils {
     }
 
 }
+

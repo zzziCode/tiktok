@@ -28,6 +28,7 @@ public class RedisLockUtils {
      * 每一个JVM对应一个独立的UUID
      * 因为他只会初始化一次，是一个常量
      * 使用这个的目的是为了解决集群中不同JVM内部可能出现线程id重复的问题
+     * key-filed-value
      */
     private static final String VALUE_PREFIX = UUID.randomUUID().toString(true) + "-";
     private static final DefaultRedisScript<Long> REENTRANT_LOCK;

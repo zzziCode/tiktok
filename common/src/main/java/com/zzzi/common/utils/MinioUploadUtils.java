@@ -24,7 +24,6 @@ public class MinioUploadUtils {
     public String upload(File file, String suffix) throws InvalidPortException, InvalidEndpointException, IOException {
         // 初始化minio客户端
         MinioClient client = new MinioClient(minioUtils.getEndPoint(), minioUtils.getAccessKey(), minioUtils.getSecretKey());
-
         //获取文件输入流
         InputStream inputStream = new FileInputStream(file);
         try {

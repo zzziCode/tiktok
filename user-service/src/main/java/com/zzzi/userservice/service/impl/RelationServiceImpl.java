@@ -62,6 +62,7 @@ public class RelationServiceImpl extends ServiceImpl<RelationMapper, UserFollowD
      */
     @Override
     @Transactional
+    //todo：缓存解耦
     public void followUnAction(String token, Long to_user_id) {
         log.info("用户取消关注操作service,token为：{}，to_user_id为：{}", token, to_user_id);
         //解析出当前用户的id

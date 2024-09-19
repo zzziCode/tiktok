@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,24 +76,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         userDO.setEmail(username);
         userDO.setPassword(pwdMD5);
         int insert = userMapper.insert(userDO);
-        //插入失败
-        if (insert != 1) {
-            throw new UserException("用户名被占用，请重新输入用户名");
+        //插入成功
+        if (insert == 1) {
+            Long userId = userDO.getUserId();
+            String token = JwtUtils.createToken(userId, username);
+            /**@author zzzi
+             * @date 2024/3/31 19:27
+             * 将用户的token保存到redis中
+             * 之后系统自动登录
+             * 到这里说明数据库插入成功，token可以正常生成
+             */
+            Integer userTokenExpireTime = randomUtils.createRandomTime();
+            redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
+            log.warn("注册生成的token为：{}", token);
+            //返回封装好的对象
+            return new UserDTO(userDO, "login:token:" + token);
         }
-
-        Long userId = userDO.getUserId();
-        String token = JwtUtils.createToken(userId, username);
-        /**@author zzzi
-         * @date 2024/3/31 19:27
-         * 将用户的token保存到redis中
-         * 之后系统自动登录
-         * 到这里说明数据库插入成功，token可以正常生成
-         */
-        Integer userTokenExpireTime = randomUtils.createRandomTime();
-        redisTemplate.opsForValue().set(RedisKeys.USER_TOKEN_PREFIX + userId, token, userTokenExpireTime, TimeUnit.MINUTES);
-        log.warn("注册生成的token为：{}", token);
-        //返回封装好的对象
-        return new UserDTO(userDO, "login:token:" + token);
+        throw new UserException("用户名被占用，请重新输入用户名");
     }
 
     /**

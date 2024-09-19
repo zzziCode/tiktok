@@ -305,7 +305,8 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
         Set<String> inBox = redisTemplate.opsForZSet().reverseRangeByScore(RedisKeys.VIDEO_FEED_PREFIX + userId, 0, latest_time - 1);
         List<String> inBoxList = new ArrayList<>(inBox);
         if (inBoxList.size() > FEED_SIZE / 2) {
-            //收件箱作品太多，删除一部分
+            //TODO：好像应该先删除前面的
+            //收件箱作品太多，删除后面的一部分
             while (inBoxList.size() > FEED_SIZE / 2) {
                 inBoxList.remove(inBoxList.size() - 1);
             }
@@ -314,6 +315,22 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
                 videoFeedList.remove(videoFeedList.size() - 1);
             }
         }
+
+        //从数据库中取出最新的视频，防止越刷越旧
+        Page<VideoDO> page = new Page<>(1, FEED_SIZE / 2);
+        page.addOrder(OrderItem.desc("update_time"));
+        LambdaQueryWrapper<VideoDO> queryWrapper = new LambdaQueryWrapper<>();
+        //默认查询小于当前推荐时间的30个视频，应该有三个
+
+        queryWrapper.ge(VideoDO::getUpdateTime, latest_time);
+
+        /**@author zzzi
+         * @date 2024/4/2 17:08
+         * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+         * 还可以按照点赞数量排序
+         * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+         */
+        videoDOList = videoMapper.selectPage(page, queryWrapper).getRecords();
 
         //3. 合并热点用户的作品和当前用户非大V的作品，需要去重
         videoFeedList.addAll(inBoxList);
@@ -812,6 +829,54 @@ public class VideoServiceImpl extends ServiceImpl<VideoMapper, VideoDO> implemen
  * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
  * 还可以按照点赞数量排序
  * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
+ * @author zzzi
+ * @date 2024/4/2 17:08
+ * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据
+ * 还可以按照点赞数量排序
+ * 视频时间一致时，点赞数多的在前面，点赞数也一致时，评论数多的在前面
+ * @author zzzi
+ * @date 2024/4/2 18:22
+ * 得到下一次推荐视频的时间
+ * @author zzzi
+ * @date 2024/4/2 18:27
+ * 重建推荐视频的缓存，如果传递的视频列表中有数据的话
+ * zset中的值不能重复，所以不会出现重复放入的情况
  * @author zzzi
  * @date 2024/4/2 17:08
  * 按照更新时间降序排列，查询一页数据，每一页默认有30条数据

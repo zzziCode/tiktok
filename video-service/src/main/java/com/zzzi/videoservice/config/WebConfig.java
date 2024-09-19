@@ -15,7 +15,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 只拦截需要登录校验的请求.比如登录/评论/点赞/发布视频/用户关注/推送视频
+        // 只拦截需要 登录校验的请求.比如登录/评论/点赞/发布视频/用户关注/推送视频
         // 除了登录和获取资源还有推送视频不拦截，其他的都拦截
         registry.addInterceptor(new LoginUserInterceptor()).excludePathPatterns(
                 "/douyin/user/**",//这里包括获取用户信息

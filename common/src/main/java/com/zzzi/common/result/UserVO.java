@@ -138,8 +138,11 @@ public class UserVO {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        //这里可以判断当前对象是不是UserVO类，这样增加equals方法的健壮性
+        if (!(o instanceof UserVO))
+            return false;
         UserVO userVO = (UserVO) o;
+        if (userVO == null || getClass() != userVO.getClass()) return false;
         return id.equals(userVO.id);
     }
 

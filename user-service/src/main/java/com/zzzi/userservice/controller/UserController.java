@@ -67,7 +67,5 @@ public class UserController {
         //将后端封装好的userVO返回给前端
         return UserInfoVO.success(user);
     }
-
-
 }
 

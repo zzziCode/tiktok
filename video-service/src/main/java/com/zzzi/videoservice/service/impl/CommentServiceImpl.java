@@ -111,7 +111,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
             }
             //删除所有子评论
             commentMapper.deleteBatchIds(idList);
-        } else {//当前评论是子评论
+        } else {//当前评论是子评论，删除他的所有回复
 
             //查询当前被评论的作者信息
             UserInfoVO replyUserInfo = userClient.userInfo(commentDO.getReplyId());
@@ -131,7 +131,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
         UserVO user = userClient.userInfo(commentDO.getUserId()).getUser();
         //获取当前用户的关注列表
         List<UserVO> user_list = userClient.getFollowList(userId.toString(), token).getUser_list();
-        if (user_list.contains(user))
+        if (user_list.contains(user))//判断删评用户与当前登录用户的关注状态
             user.setIs_follow(true);
         return packageFinalCommentVO(commentDO, user, commentSonDOList, replyName, isFather, userId, token);
     }
@@ -281,6 +281,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, CommentDO> im
             commentVO.setCreate_date(create_date);
             //父评论需要打包子评论
             commentVO.setSon_list(son_list);
+            commentVO.setIs_father(true);
 
         } else {//子评论
             commentVO = packageSonCommentVO(commentDO, user, replyName);

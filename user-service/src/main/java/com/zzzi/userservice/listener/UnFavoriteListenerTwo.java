@@ -48,6 +48,7 @@ public class UnFavoriteListenerTwo {
         LambdaQueryWrapper<UserDO> queryWrapperA = new LambdaQueryWrapper<>();
         //加上乐观锁，判断当前更新时查到的数据是否被其他线程更新过了
         queryWrapperA.eq(UserDO::getFavoriteCount, favoriteCount);
+        //todo：两步自旋异常更新数据库
         userA.setFavoriteCount(favoriteCount - 1);
         int updateA = userMapper.update(userA, queryWrapperA);
         if (updateA != 1) {
